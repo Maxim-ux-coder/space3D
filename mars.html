@@ -1,0 +1,2006 @@
+<!DOCTYPE html>
+<html lang="hy">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ՄԱՐՍԻ ՕԴԻՍԵԱ - Բարելավված Տարբերակ</title>
+    <style>
+        @font-face {
+            font-family: 'Erankyuni';
+            src: url('Erankyuni.ttf') format('truetype'),
+                 url('Erankyuni.otf') format('opentype');
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            font-family: 'Erankyuni', Arial, sans-serif;
+            background: #000;
+            overflow: hidden;
+            height: 100vh;
+            position: relative;
+        }
+
+        /* Main Game World */
+        #gameWorld {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(180deg, #0a0518 0%, #1a1a3e 50%, #2d1b69 100%);
+            transition: all 1s ease;
+        }
+
+        #gameWorld.planet-mode {
+            background: radial-gradient(circle at 50% 100%, #8b4513, #d2691e, #daa520);
+        }
+
+        #gameWorld.boss-mode {
+            background: radial-gradient(circle, #1a0033, #330066, #4d0099);
+            animation: bossPulse 4s infinite;
+        }
+
+        @keyframes bossPulse {
+            0%, 100% { filter: brightness(0.8); }
+            50% { filter: brightness(1.2); }
+        }
+
+        #gameWorld.death-replay {
+            filter: grayscale(1) contrast(1.5);
+        }
+
+        /* Scrolling Stars */
+        .stars-container {
+            position: absolute;
+            width: 100%;
+            height: 200%;
+            top: -100%;
+            animation: starsScroll 20s linear infinite;
+        }
+
+        @keyframes starsScroll {
+            from { transform: translateY(0); }
+            to { transform: translateY(50%); }
+        }
+
+        .star-bg {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: white;
+            border-radius: 50%;
+            box-shadow: 0 0 3px white;
+        }
+
+        /* Player Ship */
+        #playerShip {
+            position: absolute;
+            width: 60px;
+            height: 80px;
+            left: 50%;
+            bottom: 100px;
+            transform: translateX(-50%);
+            z-index: 100;
+            transition: all 0.1s ease;
+        }
+
+        #playerShip.invulnerable {
+            animation: invulnerableBlink 0.2s infinite;
+        }
+
+        @keyframes invulnerableBlink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .ship-body {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #4fc3f7, #1976d2, #0d47a1);
+            clip-path: polygon(50% 0%, 100% 70%, 75% 100%, 25% 100%, 0% 70%);
+            box-shadow: 0 0 30px rgba(79, 195, 247, 0.8);
+            position: relative;
+        }
+
+        .cockpit {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: radial-gradient(circle, #00ffff, #006064);
+            border-radius: 50%;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            box-shadow: 0 0 15px #00ffff;
+            animation: cockpitGlow 2s infinite;
+        }
+
+        @keyframes cockpitGlow {
+            0%, 100% { box-shadow: 0 0 10px #00ffff; }
+            50% { box-shadow: 0 0 25px #00ffff; }
+        }
+
+        .engine-flame {
+            position: absolute;
+            bottom: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 30px;
+            height: 35px;
+            background: linear-gradient(to bottom, #ffeb3b, #ff9800, #ff5722);
+            clip-path: polygon(30% 0%, 70% 0%, 100% 100%, 0% 100%);
+            filter: blur(2px);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        #playerShip.moving .engine-flame {
+            opacity: 1;
+            animation: flamePulse 0.1s infinite alternate;
+        }
+
+        @keyframes flamePulse {
+            from { transform: translateX(-50%) scaleY(0.9); }
+            to { transform: translateX(-50%) scaleY(1.2); }
+        }
+
+        /* Level Up Green Lights */
+        .level-lights {
+            position: absolute;
+            display: none;
+            gap: 10px;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .level-light {
+            width: 10px;
+            height: 10px;
+            background: #4caf50;
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 15px #4caf50;
+            animation: lightPulse 0.5s infinite;
+        }
+
+        @keyframes lightPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Ship Breaking Parts */
+        .ship-part {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(135deg, #757575, #424242);
+            animation: partFall 2s ease-in forwards;
+        }
+
+        @keyframes partFall {
+            0% {
+                transform: rotate(0deg) translateY(0);
+                opacity: 1;
+            }
+            100% {
+                transform: rotate(720deg) translateY(400px);
+                opacity: 0;
+            }
+        }
+
+        /* Space Objects */
+        .asteroid {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: radial-gradient(circle at 30% 30%, #9e9e9e, #616161, #424242);
+            border-radius: 35% 65% 65% 35% / 35% 35% 65% 65%;
+            box-shadow: 0 0 20px rgba(158, 158, 158, 0.5);
+            animation: asteroidSpin 5s linear infinite;
+        }
+
+        @keyframes asteroidSpin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .enemy-ship {
+            position: absolute;
+            width: 60px;
+            height: 40px;
+            background: linear-gradient(135deg, #f44336, #d32f2f, #b71c1c);
+            clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+            box-shadow: 0 0 25px rgba(244, 67, 54, 0.8);
+        }
+
+        .collectible-star {
+            position: absolute;
+            width: 35px;
+            height: 35px;
+            background: radial-gradient(circle, #ffd700, #ffa000);
+            clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+            box-shadow: 0 0 20px #ffd700;
+            animation: starRotate 3s linear infinite;
+        }
+
+        @keyframes starRotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Health Pack */
+        .health-pack {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: radial-gradient(circle, #4caf50, #2e7d32);
+            border-radius: 50%;
+            box-shadow: 0 0 20px #4caf50;
+            animation: healthPulse 1s ease-in-out infinite;
+        }
+
+        .health-pack::before,
+        .health-pack::after {
+            content: '';
+            position: absolute;
+            background: white;
+        }
+
+        .health-pack::before {
+            width: 20px;
+            height: 4px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .health-pack::after {
+            width: 4px;
+            height: 20px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        @keyframes healthPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        /* Power-ups (Level 7+) */
+        .secret-powerup {
+            position: absolute;
+            width: 45px;
+            height: 45px;
+            background: radial-gradient(circle, #ff00ff, #9400d3);
+            border-radius: 50%;
+            box-shadow: 0 0 30px #ff00ff;
+            animation: powerupFloat 2s ease-in-out infinite;
+        }
+
+        @keyframes powerupFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        /* Planet Surface */
+        .planet-surface {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 100px;
+            background: linear-gradient(to top, #8b4513, #a0522d);
+            display: none;
+        }
+
+        .planet-surface.active {
+            display: block;
+        }
+
+        /* Repair Parts */
+        .repair-part {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            animation: partGlow 2s infinite;
+        }
+
+        @keyframes partGlow {
+            0%, 100% { 
+                filter: brightness(1);
+                transform: scale(1);
+            }
+            50% { 
+                filter: brightness(1.3);
+                transform: scale(1.1);
+            }
+        }
+
+        .part-engine {
+            background: linear-gradient(135deg, #808080, #505050);
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(128, 128, 128, 0.8);
+        }
+
+        .part-wing {
+            background: linear-gradient(135deg, #607d8b, #37474f);
+            clip-path: polygon(0% 50%, 70% 0%, 100% 50%, 70% 100%);
+            box-shadow: 0 0 15px rgba(96, 125, 139, 0.8);
+        }
+
+        .part-battery {
+            background: linear-gradient(135deg, #4caf50, #2e7d32);
+            border-radius: 5px;
+            box-shadow: 0 0 15px rgba(76, 175, 80, 0.8);
+        }
+
+        /* Planet Enemies */
+        .planet-enemy {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+        }
+
+        .enemy-crawler {
+            background: radial-gradient(circle, #8b4513, #654321);
+            border-radius: 40% 60% 60% 40%;
+            box-shadow: 0 0 20px rgba(139, 69, 19, 0.7);
+        }
+
+        .enemy-flyer {
+            background: linear-gradient(135deg, #9c27b0, #4a148c);
+            clip-path: polygon(50% 0%, 100% 35%, 75% 100%, 25% 100%, 0% 35%);
+            box-shadow: 0 0 25px #9c27b0;
+        }
+
+        .enemy-turret {
+            background: radial-gradient(circle, #ff5722, #d32f2f);
+            border-radius: 50%;
+            box-shadow: 0 0 30px rgba(255, 87, 34, 0.8);
+        }
+
+        /* Boss */
+        #boss {
+            position: absolute;
+            width: 200px;
+            height: 250px;
+            display: none;
+            z-index: 90;
+        }
+
+        #boss.active {
+            display: block;
+            animation: bossEntrance 3s ease-out;
+        }
+
+        @keyframes bossEntrance {
+            0% { 
+                transform: scale(0) rotate(0deg);
+                opacity: 0;
+            }
+            50% { 
+                transform: scale(1.2) rotate(180deg);
+                opacity: 1;
+            }
+            100% { 
+                transform: scale(1) rotate(360deg);
+                opacity: 1;
+            }
+        }
+
+        .boss-body {
+            width: 100%;
+            height: 200px;
+            background: radial-gradient(circle at 50% 40%, #8b008b, #4b0082, #000033);
+            border-radius: 50% 50% 40% 40%;
+            position: relative;
+            box-shadow: 0 0 50px rgba(139, 0, 139, 0.8);
+        }
+
+        .boss-eye {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            background: radial-gradient(circle at 40% 40%, #ff0000, #8b0000);
+            border-radius: 50%;
+            top: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            box-shadow: 0 0 30px #ff0000;
+            animation: eyeGlow 2s infinite;
+        }
+
+        @keyframes eyeGlow {
+            0%, 100% { box-shadow: 0 0 30px #ff0000; }
+            50% { box-shadow: 0 0 60px #ff0000; }
+        }
+
+        .boss-health-bar {
+            position: absolute;
+            top: -30px;
+            left: 0;
+            width: 100%;
+            height: 15px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid #ff0000;
+            border-radius: 10px;
+        }
+
+        .boss-health-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff0000, #ff5722);
+            width: 100%;
+            transition: width 0.3s;
+        }
+
+        /* HUD */
+        .hud {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .hud-item {
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00ffff;
+            border-radius: 10px;
+            padding: 12px 18px;
+            margin-bottom: 10px;
+            min-width: 220px;
+            color: white;
+            font-size: 16px;
+        }
+
+        .hud-label {
+            color: #00ffff;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+
+        .hud-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ffd700;
+        }
+
+        .health-bar-container {
+            width: 100%;
+            height: 15px;
+            background: rgba(255, 0, 0, 0.3);
+            border-radius: 8px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .health-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4caf50, #8bc34a);
+            width: 100%;
+            transition: width 0.3s, background 0.3s;
+        }
+
+        .health-bar-fill.medium {
+            background: linear-gradient(90deg, #ffc107, #ff9800);
+        }
+
+        .health-bar-fill.low {
+            background: linear-gradient(90deg, #f44336, #ff5722);
+        }
+
+        /* Mars Facts Panel */
+        #factsPanel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 320px;
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid #ff5722;
+            border-radius: 15px;
+            padding: 20px;
+            z-index: 1000;
+        }
+
+        .fact-title {
+            color: #ff5722;
+            font-size: 20px;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .fact-number {
+            color: #ffd700;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        .fact-text {
+            color: white;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        /* Repair Progress */
+        #repairProgress {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid #4caf50;
+            border-radius: 15px;
+            padding: 20px 30px;
+            z-index: 1000;
+            display: none;
+        }
+
+        #repairProgress.active {
+            display: block;
+        }
+
+        .repair-title {
+            color: #4caf50;
+            font-size: 20px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .parts-grid {
+            display: grid;
+            grid-template-columns: repeat(10, 35px);
+            gap: 8px;
+        }
+
+        .part-slot {
+            width: 35px;
+            height: 35px;
+            border: 2px solid #4caf50;
+            border-radius: 5px;
+            background: rgba(76, 175, 80, 0.2);
+            transition: all 0.3s;
+        }
+
+        .part-slot.collected {
+            background: linear-gradient(135deg, #4caf50, #8bc34a);
+            box-shadow: 0 0 15px #4caf50;
+            animation: collectPulse 0.5s;
+        }
+
+        @keyframes collectPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3); }
+            100% { transform: scale(1); }
+        }
+
+        /* Warning System */
+        #warningOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 0, 0, 0);
+            display: none;
+            z-index: 2000;
+            animation: warningFlash 0.5s infinite;
+        }
+
+        @keyframes warningFlash {
+            0%, 100% { background: rgba(255, 0, 0, 0); }
+            50% { background: rgba(255, 0, 0, 0.3); }
+        }
+
+        .warning-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            color: #ff0000;
+            font-weight: bold;
+            text-shadow: 0 0 40px currentColor;
+            text-align: center;
+            animation: warningPulse 0.5s infinite;
+        }
+
+        @keyframes warningPulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.1); }
+        }
+
+        /* Death Replay Arrow */
+        #deathArrow {
+            position: fixed;
+            width: 0;
+            height: 0;
+            border-left: 60px solid transparent;
+            border-right: 60px solid transparent;
+            border-top: 100px solid #ff0000;
+            display: none;
+            z-index: 5000;
+            animation: arrowPulse 1s infinite;
+            filter: drop-shadow(0 0 30px #ff0000);
+        }
+
+        @keyframes arrowPulse {
+            0%, 100% { 
+                opacity: 0.7;
+                transform: scale(1);
+            }
+            50% { 
+                opacity: 1;
+                transform: scale(1.2);
+            }
+        }
+
+        /* Teleport Effect */
+        #teleportEffect {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            background: conic-gradient(from 0deg, #9c27b0, #3f51b5, #00bcd4, #4caf50, #ffeb3b, #ff9800, #f44336, #9c27b0);
+            display: none;
+            animation: teleportSpin 2s ease-in-out;
+            box-shadow: 0 0 100px rgba(156, 39, 176, 0.8);
+            z-index: 5000;
+        }
+
+        @keyframes teleportSpin {
+            0% { 
+                transform: translate(-50%, -50%) scale(0) rotate(0deg);
+                opacity: 0;
+            }
+            50% { 
+                transform: translate(-50%, -50%) scale(2) rotate(360deg);
+                opacity: 1;
+            }
+            100% { 
+                transform: translate(-50%, -50%) scale(0) rotate(720deg);
+                opacity: 0;
+            }
+        }
+
+        /* Mission Text */
+        #missionText {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 36px;
+            color: #4caf50;
+            text-shadow: 0 0 40px currentColor;
+            display: none;
+            z-index: 3000;
+            text-align: center;
+            animation: missionFade 3s forwards;
+        }
+
+        @keyframes missionFade {
+            0% { 
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.5);
+            }
+            20% { 
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+            80% { 
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+            100% { 
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(1.2);
+            }
+        }
+
+        /* Boss Announcement */
+        #bossAnnouncement {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            color: #ff00ff;
+            text-shadow: 0 0 50px currentColor;
+            display: none;
+            z-index: 3000;
+            animation: bossTextPulse 3s ease-out;
+        }
+
+        @keyframes bossTextPulse {
+            0% { 
+                transform: translate(-50%, -50%) scale(0);
+                opacity: 0;
+            }
+            50% { 
+                transform: translate(-50%, -50%) scale(1.2);
+                opacity: 1;
+            }
+            100% { 
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 0;
+            }
+        }
+
+        /* Ability Hint */
+        #abilityHint {
+            position: fixed;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 215, 0, 0.9);
+            color: #000;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            display: none;
+            z-index: 2000;
+            animation: hintBounce 1s ease-in-out infinite;
+        }
+
+        @keyframes hintBounce {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(-10px); }
+        }
+
+        /* Explosion Effect */
+        .explosion {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            pointer-events: none;
+            z-index: 500;
+        }
+
+        .explosion-circle {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: 3px solid #ff5722;
+            border-radius: 50%;
+            animation: explode 0.5s ease-out forwards;
+            box-shadow: 0 0 30px #ff5722;
+        }
+
+        @keyframes explode {
+            0% { 
+                transform: scale(0);
+                opacity: 1;
+            }
+            100% { 
+                transform: scale(2);
+                opacity: 0;
+            }
+        }
+
+        /* Start Screen */
+        #startScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, #1a1a3e, #0a0518);
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .game-title {
+            font-size: 64px;
+            color: #00ffff;
+            text-shadow: 0 0 50px currentColor;
+            margin-bottom: 50px;
+            animation: titleFloat 3s ease-in-out infinite;
+        }
+
+        @keyframes titleFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .start-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .btn {
+            padding: 20px 60px;
+            font-size: 24px;
+            background: linear-gradient(135deg, #00ff00, #00aa00);
+            color: #000;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 0 30px rgba(0, 255, 0, 0.5);
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 40px rgba(0, 255, 0, 0.8);
+        }
+
+        .btn-home {
+            background: linear-gradient(135deg, #ff9800, #f57c00);
+            box-shadow: 0 0 30px rgba(255, 152, 0, 0.5);
+        }
+
+        /* Game Over Screen */
+        #gameOverScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 9999;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .game-over-content {
+            text-align: center;
+            animation: fadeIn 1s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .game-over-title {
+            font-size: 72px;
+            color: #ff5252;
+            margin-bottom: 30px;
+            text-shadow: 0 0 40px currentColor;
+        }
+
+        .final-score {
+            font-size: 36px;
+            color: #ffd700;
+            margin-bottom: 40px;
+        }
+
+        /* Mobile Controls */
+        .mobile-controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+            gap: 20px;
+            z-index: 1000;
+        }
+
+        @media (max-width: 768px) {
+            .mobile-controls {
+                display: flex;
+            }
+        }
+
+        .mobile-btn {
+            width: 70px;
+            height: 70px;
+            background: rgba(0, 255, 255, 0.3);
+            border: 3px solid #00ffff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            color: #00ffff;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .mobile-btn:active {
+            background: rgba(0, 255, 255, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div id="gameWorld">
+        <div class="stars-container" id="starsContainer"></div>
+        <div class="planet-surface" id="planetSurface"></div>
+    </div>
+
+    <!-- Player Ship -->
+    <div id="playerShip">
+        <div class="ship-body">
+            <div class="cockpit"></div>
+        </div>
+        <div class="engine-flame"></div>
+        <div class="level-lights">
+            <span class="level-light"></span>
+            <span class="level-light"></span>
+            <span class="level-light"></span>
+        </div>
+    </div>
+
+    <!-- Boss -->
+    <div id="boss">
+        <div class="boss-body">
+            <div class="boss-eye"></div>
+        </div>
+        <div class="boss-health-bar">
+            <div class="boss-health-fill" id="bossHealthBar"></div>
+        </div>
+    </div>
+
+    <!-- HUD -->
+    <div class="hud">
+        <div class="hud-item">
+            <div class="hud-label">ՄԻԱՎՈՐՆԵՐ</div>
+            <div class="hud-value" id="score">0</div>
+        </div>
+        <div class="hud-item">
+            <div class="hud-label">ԱՐԱԳՈՒԹՅՈՒՆ</div>
+            <div><span id="speed" style="color: #4caf50; font-size: 20px;">50</span> կմ/վ</div>
+        </div>
+        <div class="hud-item">
+            <div class="hud-label">ԱՌՈՂՋՈՒԹՅՈՒՆ</div>
+            <div class="health-bar-container">
+                <div class="health-bar-fill" id="healthBar"></div>
+            </div>
+            <div style="color: #4caf50; font-size: 18px; margin-top: 5px;" id="healthValue">100/100</div>
+        </div>
+        <div class="hud-item">
+            <div class="hud-label">ՄԱԿԱՐԴԱԿ</div>
+            <div class="hud-value" id="level">1</div>
+        </div>
+    </div>
+
+    <!-- Mars Facts Panel -->
+    <div id="factsPanel">
+        <div class="fact-title">🔴 ՄԱՐՍԻ ՓԱՍՏԵՐ</div>
+        <div class="fact-number">Փաստ #<span id="factNumber">1</span>/20</div>
+        <div class="fact-text" id="factText"></div>
+    </div>
+
+    <!-- Repair Progress -->
+    <div id="repairProgress">
+        <div class="repair-title">ՎԵՐԱՆՈՐՈԳՄԱՆ ՄԱՍԵՐ: <span id="partsCount">0</span>/10</div>
+        <div class="parts-grid" id="partsGrid"></div>
+    </div>
+
+    <!-- Warning Overlay -->
+    <div id="warningOverlay">
+        <div class="warning-text">
+            ⚠️ ՎՏԱՆԳ ⚠️<br>
+            ՏԻԵԶԵՐԱՆԱՎԸ ՎՆԱՍՎՈՒՄ Է!
+        </div>
+    </div>
+
+    <!-- Death Arrow -->
+    <div id="deathArrow"></div>
+
+    <!-- Teleport Effect -->
+    <div id="teleportEffect"></div>
+
+    <!-- Mission Text -->
+    <div id="missionText"></div>
+
+    <!-- Boss Announcement -->
+    <div id="bossAnnouncement">ԲՈՍՍԻ ՀԵՏ ԿՌՎԵԼՈՒ ԺԱՄԱՆԱԿՆ Է!</div>
+
+    <!-- Ability Hint -->
+    <div id="abilityHint"></div>
+
+    <!-- Mobile Controls -->
+    <div class="mobile-controls">
+        <div class="mobile-btn" id="moveLeft">◄</div>
+        <div class="mobile-btn" id="fireBtn">🔥</div>
+        <div class="mobile-btn" id="moveRight">►</div>
+    </div>
+
+    <!-- Start Screen -->
+    <div id="startScreen">
+        <h1 class="game-title">🚀 ՄԱՐՍԻ ՕԴԻՍԵԱ 🚀</h1>
+        <div class="start-buttons">
+            <button class="btn" onclick="game.start()">ՍԿՍԵԼ ԽԱՂԸ</button>
+            <button class="btn btn-home" onclick="window.location.href='index.html'">ԳԼԽԱՎՈՐ ԷՋ</button>
+        </div>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="gameOverScreen">
+        <div class="game-over-content">
+            <h1 class="game-over-title">ԽԱՂԸ ԱՎԱՐՏՎԱԾ Է</h1>
+            <div class="final-score">Միավորներ: <span id="finalScore">0</span></div>
+            <div class="start-buttons">
+                <button class="btn" onclick="location.reload()">ԿՐԿԻՆ ԽԱՂԱԼ</button>
+                <button class="btn btn-home" onclick="window.location.href='index.html'">ԳԼԽԱՎՈՐ</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class MarsOdysseyGame {
+            constructor() {
+                this.score = 0;
+                this.speed = 50;
+                this.health = 100;
+                this.maxHealth = 100;
+                this.level = 1;
+                this.isPlaying = false;
+                this.isPlanetMode = false;
+                this.isBossMode = false;
+                this.hasShipBroken = false;
+                this.partsCollected = 0;
+                this.currentFactIndex = 0;
+                this.bossHealth = 100;
+                this.isInvulnerable = false;
+                this.isDying = false;
+                this.deathPosition = { x: 0, y: 0 };
+                
+                // Position
+                this.playerX = window.innerWidth / 2;
+                this.playerY = window.innerHeight - 150;
+                this.keys = {};
+                
+                // Arrays
+                this.spaceObjects = [];
+                this.planetEnemies = [];
+                this.repairParts = [];
+                
+                // Special powers
+                this.hasLaser = false;
+                this.hasShield = false;
+                
+                // Mars Facts
+                this.marsFacts = [
+                    "Մարսը Արեգակնային համակարգի 4-րդ մոլորակն է",
+                    "Մարսի օրը տևում է 24 ժամ 37 րոպե",
+                    "Մարսն ունի 2 բնական արբանյակ՝ Ֆոբոս և Դեյմոս",
+                    "Մարսի ջերմաստիճանը -143°C-ից մինչև 35°C է",
+                    "Օլիմպոս լեռը 21.9 կմ բարձրություն ունի",
+                    "Մարսի տարին տևում է 687 երկրային օր",
+                    "Մարսի գրավիտացիան Երկրի 38%-ն է",
+                    "Մարսը կարմիր է երկաթի օքսիդի պատճառով",
+                    "Մարսի մթնոլորտը 95% CO2 է",
+                    "Valles Marineris կիրճը 4000 կմ երկարություն ունի",
+                    "Մարսի բևեռներում ջրի սառույց կա",
+                    "Մարսը Երկրից 225 միլիոն կմ հեռու է",
+                    "Մարսի վրա փոշու փոթորիկներ կան",
+                    "Curiosity ռովերը 2012-ից Մարսի վրա է",
+                    "Մարսի վրա մեթան գազ է հայտնաբերվել",
+                    "Մարսն ունի 4 եղանակ",
+                    "Մարսի մագնիսական դաշտը թույլ է",
+                    "InSight-ը Մարսի ցնցումներ է գրանցել",
+                    "Մարսը տեսանելի է գիշերը",
+                    "2030-ականներին մարդիկ կգնան Մարս"
+                ];
+                
+                this.init();
+            }
+            
+            init() {
+                this.createStars();
+                this.createRepairSlots();
+                this.setupControls();
+                this.setupMobileControls();
+            }
+            
+            createStars() {
+                const container = document.getElementById('starsContainer');
+                for (let i = 0; i < 200; i++) {
+                    const star = document.createElement('div');
+                    star.className = 'star-bg';
+                    star.style.left = Math.random() * 100 + '%';
+                    star.style.top = Math.random() * 200 + '%';
+                    container.appendChild(star);
+                }
+            }
+            
+            createRepairSlots() {
+                const grid = document.getElementById('partsGrid');
+                for (let i = 0; i < 10; i++) {
+                    const slot = document.createElement('div');
+                    slot.className = 'part-slot';
+                    slot.id = `slot-${i}`;
+                    grid.appendChild(slot);
+                }
+            }
+            
+            setupControls() {
+                document.addEventListener('keydown', (e) => {
+                    this.keys[e.key.toLowerCase()] = true;
+                    
+                    if (e.key === ' ' && this.hasLaser && this.level >= 7) {
+                        e.preventDefault();
+                        this.fireLaser();
+                    }
+                });
+                
+                document.addEventListener('keyup', (e) => {
+                    this.keys[e.key.toLowerCase()] = false;
+                });
+                
+                setInterval(() => {
+                    if (!this.isPlaying || this.isDying) return;
+                    
+                    const ship = document.getElementById('playerShip');
+                    const moveSpeed = 10;
+                    let moved = false;
+                    
+                    if (this.keys['a'] || this.keys['arrowleft']) {
+                        this.playerX = Math.max(30, this.playerX - moveSpeed);
+                        moved = true;
+                    }
+                    if (this.keys['d'] || this.keys['arrowright']) {
+                        this.playerX = Math.min(window.innerWidth - 30, this.playerX + moveSpeed);
+                        moved = true;
+                    }
+                    
+                    if (this.isPlanetMode || this.isBossMode) {
+                        if (this.keys['w'] || this.keys['arrowup']) {
+                            this.playerY = Math.max(30, this.playerY - moveSpeed);
+                            moved = true;
+                        }
+                        if (this.keys['s'] || this.keys['arrowdown']) {
+                            this.playerY = Math.min(window.innerHeight - 100, this.playerY + moveSpeed);
+                            moved = true;
+                        }
+                    }
+                    
+                    ship.style.left = this.playerX + 'px';
+                    if (this.isPlanetMode || this.isBossMode) {
+                        ship.style.bottom = '';
+                        ship.style.top = this.playerY + 'px';
+                    }
+                    
+                    if (moved) {
+                        ship.classList.add('moving');
+                    } else {
+                        ship.classList.remove('moving');
+                    }
+                }, 16);
+            }
+            
+            setupMobileControls() {
+                const moveLeft = document.getElementById('moveLeft');
+                const moveRight = document.getElementById('moveRight');
+                const fireBtn = document.getElementById('fireBtn');
+                
+                moveLeft.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    this.keys['a'] = true;
+                });
+                moveLeft.addEventListener('touchend', () => {
+                    this.keys['a'] = false;
+                });
+                
+                moveRight.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    this.keys['d'] = true;
+                });
+                moveRight.addEventListener('touchend', () => {
+                    this.keys['d'] = false;
+                });
+                
+                fireBtn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    if (this.hasLaser && this.level >= 7) {
+                        this.fireLaser();
+                    }
+                });
+            }
+            
+            start() {
+                this.isPlaying = true;
+                this.score = 0;
+                this.speed = 50;
+                this.health = 100;
+                this.maxHealth = 100;
+                this.level = 1;
+                this.isDying = false;
+                this.hasShipBroken = false;
+                this.isPlanetMode = false;
+                this.isBossMode = false;
+                
+                document.getElementById('startScreen').style.display = 'none';
+                this.updateHUD();
+                this.startSpaceMode();
+                this.startFactDisplay();
+                this.startSpeedIncrease();
+            }
+            
+            startSpaceMode() {
+                this.gameLoop = setInterval(() => {
+                    if (!this.isPlaying || this.isPlanetMode || this.isBossMode || this.isDying) return;
+                    
+                    this.updateSpaceObjects();
+                    this.checkCollisions();
+                }, 16);
+                
+                this.spawnInterval = setInterval(() => {
+                    if (!this.isPlaying || this.isPlanetMode || this.isBossMode || this.isDying) return;
+                    this.spawnSpaceObject();
+                }, 1000);
+            }
+            
+            spawnSpaceObject() {
+                const types = ['asteroid', 'enemy', 'star', 'health'];
+                if (this.level >= 7) types.push('powerup');
+                
+                const type = types[Math.floor(Math.random() * types.length)];
+                const obj = document.createElement('div');
+                
+                switch(type) {
+                    case 'asteroid':
+                        obj.className = 'asteroid';
+                        obj.style.width = '50px';
+                        obj.style.height = '50px';
+                        break;
+                    case 'enemy':
+                        obj.className = 'enemy-ship';
+                        obj.style.width = '60px';
+                        obj.style.height = '40px';
+                        break;
+                    case 'star':
+                        obj.className = 'collectible-star';
+                        obj.style.width = '35px';
+                        obj.style.height = '35px';
+                        break;
+                    case 'health':
+                        obj.className = 'health-pack';
+                        obj.style.width = '40px';
+                        obj.style.height = '40px';
+                        break;
+                    case 'powerup':
+                        obj.className = 'secret-powerup';
+                        obj.style.width = '45px';
+                        obj.style.height = '45px';
+                        break;
+                }
+                
+                obj.style.position = 'absolute';
+                obj.style.left = Math.random() * (window.innerWidth - 60) + 'px';
+                obj.style.top = '-60px';
+                
+                document.getElementById('gameWorld').appendChild(obj);
+                
+                this.spaceObjects.push({
+                    element: obj,
+                    type: type,
+                    y: -60,
+                    speed: 3 + Math.random() * 3
+                });
+            }
+            
+            updateSpaceObjects() {
+                this.spaceObjects = this.spaceObjects.filter(obj => {
+                    obj.y += obj.speed * (this.speed / 50);
+                    obj.element.style.top = obj.y + 'px';
+                    
+                    if (obj.y > window.innerHeight) {
+                        obj.element.remove();
+                        return false;
+                    }
+                    
+                    return true;
+                });
+            }
+            
+            checkCollisions() {
+                if (this.isInvulnerable) return;
+                
+                const ship = document.getElementById('playerShip');
+                const shipRect = ship.getBoundingClientRect();
+                
+                this.spaceObjects.forEach(obj => {
+                    const objRect = obj.element.getBoundingClientRect();
+                    
+                    if (this.isColliding(shipRect, objRect)) {
+                        switch(obj.type) {
+                            case 'asteroid':
+                                this.takeDamage(15);
+                                this.createExplosion(objRect.left, objRect.top);
+                                this.playSound('explosion');
+                                break;
+                            case 'enemy':
+                                this.takeDamage(20);
+                                this.createExplosion(objRect.left, objRect.top);
+                                this.playSound('explosion');
+                                break;
+                            case 'star':
+                                this.addScore(100);
+                                this.playSound('collect');
+                                break;
+                            case 'health':
+                                this.heal(25);
+                                this.playSound('collect');
+                                break;
+                            case 'powerup':
+                                this.collectPowerup();
+                                this.playSound('collect');
+                                break;
+                        }
+                        
+                        obj.element.remove();
+                        this.spaceObjects = this.spaceObjects.filter(o => o !== obj);
+                    }
+                });
+            }
+            
+            isColliding(rect1, rect2) {
+                return !(rect1.left > rect2.right || 
+                        rect1.right < rect2.left || 
+                        rect1.top > rect2.bottom || 
+                        rect1.bottom < rect2.top);
+            }
+            
+            startFactDisplay() {
+                this.factInterval = setInterval(() => {
+                    if (!this.isPlaying || this.isPlanetMode || this.isBossMode || this.isDying) return;
+                    
+                    this.currentFactIndex++;
+                    if (this.currentFactIndex > 20) this.currentFactIndex = 1;
+                    
+                    document.getElementById('factNumber').textContent = this.currentFactIndex;
+                    document.getElementById('factText').textContent = this.marsFacts[this.currentFactIndex - 1];
+                    
+                    if (!this.hasShipBroken && (this.currentFactIndex === 7 || this.currentFactIndex === 10 || this.currentFactIndex === 12)) {
+                        if (Math.random() > 0.5) {
+                            this.triggerShipBreakdown();
+                        }
+                    }
+                }, 5000);
+            }
+            
+            startSpeedIncrease() {
+                this.speedInterval = setInterval(() => {
+                    if (!this.isPlaying || this.isPlanetMode || this.isBossMode || this.isDying) return;
+                    
+                    if (this.level > 1) {
+                        this.speed = Math.min(200, this.speed + 5);
+                        document.getElementById('speed').textContent = this.speed;
+                    }
+                }, 3000);
+            }
+            
+            triggerShipBreakdown() {
+                if (this.hasShipBroken || this.isDying) return;
+                this.hasShipBroken = true;
+                
+                const warning = document.getElementById('warningOverlay');
+                warning.style.display = 'block';
+                
+                setTimeout(() => {
+                    warning.style.display = 'none';
+                    if (this.isPlaying && !this.isDying) {
+                        this.breakShip();
+                    }
+                }, 5000);
+            }
+            
+            breakShip() {
+                const ship = document.getElementById('playerShip');
+                const rect = ship.getBoundingClientRect();
+                
+                for (let i = 0; i < 8; i++) {
+                    const part = document.createElement('div');
+                    part.className = 'ship-part';
+                    part.style.left = rect.left + Math.random() * 60 + 'px';
+                    part.style.top = rect.top + Math.random() * 80 + 'px';
+                    part.style.transform = `rotate(${Math.random() * 360}deg)`;
+                    document.body.appendChild(part);
+                    
+                    setTimeout(() => part.remove(), 2000);
+                }
+                
+                this.createExplosion(rect.left + 30, rect.top + 40);
+                ship.style.display = 'none';
+                
+                setTimeout(() => {
+                    if (this.isPlaying && !this.isDying) {
+                        this.enterPlanetMode();
+                    }
+                }, 2000);
+            }
+            
+            enterPlanetMode() {
+                this.isPlanetMode = true;
+                
+                clearInterval(this.spawnInterval);
+                
+                this.spaceObjects.forEach(obj => obj.element.remove());
+                this.spaceObjects = [];
+                
+                const missionText = document.getElementById('missionText');
+                missionText.textContent = 'ՀԱՎԱՔԵՔ 10 ՎԵՐԱՆՈՐՈԳՄԱՆ ՄԱՍԵՐ';
+                missionText.style.display = 'block';
+                setTimeout(() => {
+                    missionText.style.display = 'none';
+                }, 3000);
+                
+                document.getElementById('gameWorld').className = 'planet-mode';
+                document.getElementById('planetSurface').classList.add('active');
+                document.getElementById('factsPanel').style.display = 'none';
+                document.getElementById('repairProgress').classList.add('active');
+                
+                const ship = document.getElementById('playerShip');
+                ship.style.display = 'block';
+                ship.style.bottom = '';
+                this.playerX = window.innerWidth / 2;
+                this.playerY = window.innerHeight / 2;
+                ship.style.left = this.playerX + 'px';
+                ship.style.top = this.playerY + 'px';
+                
+                this.spawnRepairParts();
+                this.spawnPlanetEnemies();
+                
+                this.planetLoop = setInterval(() => {
+                    if (!this.isDying) {
+                        this.updatePlanetMode();
+                    }
+                }, 16);
+            }
+            
+            spawnRepairParts() {
+                const types = ['part-engine', 'part-wing', 'part-battery'];
+                
+                for (let i = 0; i < 10; i++) {
+                    const part = document.createElement('div');
+                    part.className = `repair-part ${types[i % 3]}`;
+                    
+                    const x = 100 + (i % 5) * 250;
+                    const y = 100 + Math.floor(i / 5) * 250;
+                    
+                    part.style.left = x + Math.random() * 150 + 'px';
+                    part.style.top = y + Math.random() * 150 + 'px';
+                    
+                    document.getElementById('gameWorld').appendChild(part);
+                    
+                    this.repairParts.push({
+                        element: part,
+                        collected: false
+                    });
+                }
+            }
+            
+            spawnPlanetEnemies() {
+                const types = ['enemy-crawler', 'enemy-flyer', 'enemy-turret'];
+                
+                for (let i = 0; i < 6; i++) {
+                    const enemy = document.createElement('div');
+                    enemy.className = `planet-enemy ${types[i % 3]}`;
+                    
+                    enemy.style.left = Math.random() * window.innerWidth + 'px';
+                    enemy.style.top = Math.random() * window.innerHeight + 'px';
+                    
+                    document.getElementById('gameWorld').appendChild(enemy);
+                    
+                    this.planetEnemies.push({
+                        element: enemy,
+                        type: types[i % 3],
+                        baseX: parseFloat(enemy.style.left),
+                        baseY: parseFloat(enemy.style.top)
+                    });
+                }
+            }
+            
+            updatePlanetMode() {
+                const time = Date.now() / 1000;
+                
+                this.planetEnemies.forEach((enemy, index) => {
+                    if (enemy.type === 'enemy-flyer') {
+                        enemy.element.style.top = enemy.baseY + Math.sin(time * 2 + index) * 50 + 'px';
+                    } else if (enemy.type === 'enemy-crawler') {
+                        enemy.element.style.left = enemy.baseX + Math.cos(time + index) * 100 + 'px';
+                    }
+                });
+                
+                this.checkPlanetCollisions();
+            }
+            
+            checkPlanetCollisions() {
+                if (this.isInvulnerable) return;
+                
+                const ship = document.getElementById('playerShip');
+                const shipRect = ship.getBoundingClientRect();
+                
+                this.repairParts.forEach((part, index) => {
+                    if (part.collected) return;
+                    
+                    const partRect = part.element.getBoundingClientRect();
+                    
+                    if (this.isColliding(shipRect, partRect)) {
+                        part.collected = true;
+                        part.element.remove();
+                        this.partsCollected++;
+                        
+                        document.getElementById('partsCount').textContent = this.partsCollected;
+                        document.getElementById(`slot-${this.partsCollected - 1}`).classList.add('collected');
+                        this.playSound('collect');
+                        
+                        if (this.partsCollected >= 10) {
+                            this.completeRepair();
+                        }
+                    }
+                });
+                
+                this.planetEnemies.forEach(enemy => {
+                    const enemyRect = enemy.element.getBoundingClientRect();
+                    
+                    if (this.isColliding(shipRect, enemyRect)) {
+                        this.takeDamage(10);
+                    }
+                });
+            }
+            
+            completeRepair() {
+                clearInterval(this.planetLoop);
+                
+                const missionText = document.getElementById('missionText');
+                missionText.textContent = 'ՎԵՐԱՆՈՐՈԳՈՒՄԸ ՀԱՋՈՂ ԱՎԱՐՏՎԵՑ!';
+                missionText.style.display = 'block';
+                
+                setTimeout(() => {
+                    missionText.style.display = 'none';
+                    document.getElementById('teleportEffect').style.display = 'block';
+                    
+                    setTimeout(() => {
+                        document.getElementById('teleportEffect').style.display = 'none';
+                        this.returnToSpace();
+                    }, 2000);
+                }, 2000);
+            }
+            
+            returnToSpace() {
+                this.isPlanetMode = false;
+                this.partsCollected = 0;
+                
+                this.planetEnemies.forEach(e => e.element.remove());
+                this.planetEnemies = [];
+                this.repairParts = [];
+                
+                document.getElementById('gameWorld').className = '';
+                document.getElementById('planetSurface').classList.remove('active');
+                document.getElementById('repairProgress').classList.remove('active');
+                document.getElementById('factsPanel').style.display = 'block';
+                
+                for (let i = 0; i < 10; i++) {
+                    document.getElementById(`slot-${i}`).classList.remove('collected');
+                }
+                
+                const ship = document.getElementById('playerShip');
+                ship.style.top = '';
+                ship.style.bottom = '100px';
+                ship.style.left = '50%';
+                ship.style.transform = 'translateX(-50%)';
+                this.playerX = window.innerWidth / 2;
+                this.playerY = window.innerHeight - 150;
+                
+                this.health = Math.min(this.maxHealth, this.health + 50);
+                this.updateHUD();
+                
+                this.startSpaceMode();
+            }
+            
+            addScore(points) {
+                this.score += points;
+                document.getElementById('score').textContent = this.score;
+                
+                if (this.score >= this.level * 500) {
+                    this.levelUp();
+                }
+            }
+            
+            levelUp() {
+                this.level++;
+                document.getElementById('level').textContent = this.level;
+                
+                const lights = document.querySelector('.level-lights');
+                lights.style.display = 'flex';
+                
+                setTimeout(() => {
+                    lights.style.display = 'none';
+                }, 3000);
+                
+                if (this.level === 10) {
+                    this.initiateBossBattle();
+                }
+            }
+            
+            initiateBossBattle() {
+                clearInterval(this.spawnInterval);
+                clearInterval(this.factInterval);
+                clearInterval(this.speedInterval);
+                
+                this.spaceObjects.forEach(obj => obj.element.remove());
+                this.spaceObjects = [];
+                
+                document.getElementById('factsPanel').style.display = 'none';
+                
+                const announcement = document.getElementById('bossAnnouncement');
+                announcement.style.display = 'block';
+                
+                setTimeout(() => {
+                    announcement.style.display = 'none';
+                    this.startBossBattle();
+                }, 3000);
+            }
+            
+            startBossBattle() {
+                this.isBossMode = true;
+                
+                document.getElementById('gameWorld').className = 'boss-mode';
+                
+                const ship = document.getElementById('playerShip');
+                ship.style.bottom = '';
+                ship.style.top = window.innerHeight - 200 + 'px';
+                ship.style.left = window.innerWidth / 2 + 'px';
+                ship.style.transform = '';
+                this.playerY = window.innerHeight - 200;
+                
+                const boss = document.getElementById('boss');
+                boss.classList.add('active');
+                boss.style.left = '50%';
+                boss.style.top = '100px';
+                boss.style.transform = 'translateX(-50%)';
+                
+                this.bossLoop = setInterval(() => {
+                    if (!this.isDying) {
+                        this.updateBossBattle();
+                    }
+                }, 16);
+            }
+            
+            updateBossBattle() {
+                if (Math.random() < 0.02) {
+                    this.bossAttack();
+                }
+            }
+            
+            bossAttack() {
+                const projectile = document.createElement('div');
+                projectile.style.cssText = `
+                    position: absolute;
+                    width: 30px;
+                    height: 30px;
+                    background: radial-gradient(circle, #ff0000, #8b0000);
+                    border-radius: 50%;
+                    left: ${window.innerWidth / 2}px;
+                    top: 200px;
+                    z-index: 89;
+                    box-shadow: 0 0 20px #ff0000;
+                `;
+                
+                document.getElementById('gameWorld').appendChild(projectile);
+                
+                let projY = 200;
+                const projInterval = setInterval(() => {
+                    projY += 8;
+                    projectile.style.top = projY + 'px';
+                    
+                    if (projY > window.innerHeight) {
+                        projectile.remove();
+                        clearInterval(projInterval);
+                        return;
+                    }
+                    
+                    const projRect = projectile.getBoundingClientRect();
+                    const shipRect = document.getElementById('playerShip').getBoundingClientRect();
+                    
+                    if (this.isColliding(shipRect, projRect) && !this.isInvulnerable) {
+                        this.takeDamage(25);
+                        projectile.remove();
+                        clearInterval(projInterval);
+                    }
+                }, 16);
+            }
+            
+            collectPowerup() {
+                if (this.level >= 7) {
+                    this.hasLaser = true;
+                    this.showHint('ԼԱԶԵՐ ԱԿՏԻՎԱՑՎԱԾ - SPACE ՍՏԵՂՆ');
+                }
+            }
+            
+            fireLaser() {
+                const laser = document.createElement('div');
+                laser.style.cssText = `
+                    position: absolute;
+                    width: 4px;
+                    height: 500px;
+                    background: linear-gradient(to top, transparent, #00ff00, #00ff00, transparent);
+                    left: ${this.playerX}px;
+                    bottom: ${window.innerHeight - this.playerY}px;
+                    z-index: 101;
+                    box-shadow: 0 0 20px #00ff00;
+                `;
+                
+                document.body.appendChild(laser);
+                this.playSound('laser');
+                
+                setTimeout(() => laser.remove(), 300);
+                
+                if (this.isBossMode) {
+                    this.bossHealth -= 10;
+                    document.getElementById('bossHealthBar').style.width = this.bossHealth + '%';
+                    
+                    if (this.bossHealth <= 0) {
+                        this.defeatBoss();
+                    }
+                }
+            }
+            
+            defeatBoss() {
+                clearInterval(this.bossLoop);
+                
+                const boss = document.getElementById('boss');
+                this.createExplosion(window.innerWidth / 2, 200);
+                
+                setTimeout(() => {
+                    boss.classList.remove('active');
+                    boss.style.display = 'none';
+                    this.victory();
+                }, 1000);
+            }
+            
+            victory() {
+                this.isPlaying = false;
+                
+                const victoryText = document.createElement('div');
+                victoryText.style.cssText = `
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    font-size: 72px;
+                    color: #ffd700;
+                    text-shadow: 0 0 50px currentColor;
+                    z-index: 10000;
+                    text-align: center;
+                `;
+                victoryText.innerHTML = '🎉 ՀԱՂԹԱՆԱԿ! 🎉<br><span style="font-size: 36px;">Դուք փրկեցիք Մարսի առաքելությունը!</span>';
+                document.body.appendChild(victoryText);
+                
+                this.score += 10000;
+                this.updateHUD();
+                
+                setTimeout(() => {
+                    this.gameOver();
+                }, 5000);
+            }
+            
+            heal(amount) {
+                this.health = Math.min(this.maxHealth, this.health + amount);
+                this.updateHUD();
+                this.showHint(`+${amount} ԱՌՈՂՋՈՒԹՅՈՒՆ`);
+            }
+            
+            takeDamage(amount) {
+                if (this.isInvulnerable || this.isDying) return;
+                
+                this.health = Math.max(0, this.health - amount);
+                this.updateHUD();
+                
+                const ship = document.getElementById('playerShip');
+                ship.classList.add('invulnerable');
+                this.isInvulnerable = true;
+                
+                setTimeout(() => {
+                    ship.classList.remove('invulnerable');
+                    this.isInvulnerable = false;
+                }, 1000);
+                
+                if (this.health <= 0) {
+                    this.triggerDeathSequence();
+                }
+            }
+            
+            triggerDeathSequence() {
+                if (this.isDying) return;
+                this.isDying = true;
+                this.isPlaying = false;
+                
+                const ship = document.getElementById('playerShip');
+                const shipRect = ship.getBoundingClientRect();
+                this.deathPosition.x = shipRect.left + shipRect.width / 2;
+                this.deathPosition.y = shipRect.top + shipRect.height / 2;
+                
+                const world = document.getElementById('gameWorld');
+                world.classList.add('death-replay');
+                
+                this.createExplosion(this.deathPosition.x, this.deathPosition.y);
+                ship.style.opacity = '0';
+                
+                setTimeout(() => {
+                    world.style.transform = `scale(2)`;
+                    world.style.transformOrigin = `${this.deathPosition.x}px ${this.deathPosition.y}px`;
+                    
+                    const arrow = document.getElementById('deathArrow');
+                    arrow.style.left = this.deathPosition.x + 'px';
+                    arrow.style.top = this.deathPosition.y - 150 + 'px';
+                    arrow.style.display = 'block';
+                }, 500);
+                
+                setTimeout(() => {
+                    world.style.transform = `scale(2.5)`;
+                }, 2000);
+                
+                setTimeout(() => {
+                    world.style.transform = 'scale(1)';
+                    world.style.transition = 'all 2s';
+                    world.style.filter = 'brightness(0)';
+                    arrow.style.display = 'none';
+                }, 3500);
+                
+                setTimeout(() => {
+                    this.gameOver();
+                }, 5500);
+            }
+            
+            gameOver() {
+                clearInterval(this.gameLoop);
+                clearInterval(this.spawnInterval);
+                clearInterval(this.factInterval);
+                clearInterval(this.speedInterval);
+                clearInterval(this.planetLoop);
+                clearInterval(this.bossLoop);
+                
+                document.getElementById('finalScore').textContent = this.score;
+                document.getElementById('gameOverScreen').style.display = 'flex';
+            }
+            
+            updateHUD() {
+                document.getElementById('score').textContent = this.score;
+                document.getElementById('speed').textContent = this.speed;
+                document.getElementById('level').textContent = this.level;
+                document.getElementById('healthValue').textContent = `${this.health}/${this.maxHealth}`;
+                
+                const healthBar = document.getElementById('healthBar');
+                healthBar.style.width = (this.health / this.maxHealth * 100) + '%';
+                
+                if (this.health > 60) {
+                    healthBar.className = 'health-bar-fill';
+                } else if (this.health > 30) {
+                    healthBar.className = 'health-bar-fill medium';
+                } else {
+                    healthBar.className = 'health-bar-fill low';
+                }
+            }
+            
+            createExplosion(x, y) {
+                const explosion = document.createElement('div');
+                explosion.className = 'explosion';
+                explosion.style.left = (x - 50) + 'px';
+                explosion.style.top = (y - 50) + 'px';
+                
+                for (let i = 0; i < 3; i++) {
+                    const circle = document.createElement('div');
+                    circle.className = 'explosion-circle';
+                    circle.style.animationDelay = (i * 0.1) + 's';
+                    explosion.appendChild(circle);
+                }
+                
+                document.body.appendChild(explosion);
+                
+                setTimeout(() => explosion.remove(), 1000);
+            }
+            
+            showHint(text) {
+                const hint = document.getElementById('abilityHint');
+                hint.textContent = text;
+                hint.style.display = 'block';
+                
+                setTimeout(() => {
+                    hint.style.display = 'none';
+                }, 3000);
+            }
+            
+            playSound(type) {
+                try {
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    
+                    switch(type) {
+                        case 'explosion':
+                            oscillator.type = 'sawtooth';
+                            oscillator.frequency.value = 100;
+                            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                            oscillator.stop(audioContext.currentTime + 0.3);
+                            break;
+                        case 'collect':
+                            oscillator.type = 'sine';
+                            oscillator.frequency.value = 800;
+                            gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+                            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+                            oscillator.stop(audioContext.currentTime + 0.1);
+                            break;
+                        case 'laser':
+                            oscillator.type = 'square';
+                            oscillator.frequency.setValueAtTime(2000, audioContext.currentTime);
+                            oscillator.frequency.exponentialRampToValueAtTime(100, audioContext.currentTime + 0.2);
+                            gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+                            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+                            oscillator.stop(audioContext.currentTime + 0.2);
+                            break;
+                    }
+                    
+                    oscillator.start();
+                } catch(e) {
+                    console.log('Audio not supported');
+                }
+            }
+        }
+        
+        const game = new MarsOdysseyGame();
+        
+        if ('ontouchstart' in window) {
+            let touchStartX = 0;
+            let touchStartY = 0;
+            
+            document.addEventListener('touchstart', (e) => {
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+            });
+            
+            document.addEventListener('touchmove', (e) => {
+                if (!game.isPlaying) return;
+                e.preventDefault();
+                
+                const touchX = e.touches[0].clientX;
+                const touchY = e.touches[0].clientY;
+                const deltaX = touchX - touchStartX;
+                const deltaY = touchY - touchStartY;
+                
+                game.playerX += deltaX * 0.5;
+                game.playerY += deltaY * 0.5;
+                
+                game.playerX = Math.max(30, Math.min(window.innerWidth - 30, game.playerX));
+                game.playerY = Math.max(30, Math.min(window.innerHeight - 100, game.playerY));
+                
+                const ship = document.getElementById('playerShip');
+                ship.style.left = game.playerX + 'px';
+                
+                if (game.isPlanetMode || game.isBossMode) {
+                    ship.style.top = game.playerY + 'px';
+                }
+                
+                touchStartX = touchX;
+                touchStartY = touchY;
+            });
+            
+            let lastTap = 0;
+            document.addEventListener('touchend', (e) => {
+                const currentTime = new Date().getTime();
+                const tapInterval = currentTime - lastTap;
+                
+                if (tapInterval < 300 && tapInterval > 0) {
+                    if (game.hasLaser && game.level >= 7) {
+                        game.fireLaser();
+                    }
+                }
+                
+                lastTap = currentTime;
+            });
+        }
+    </script>
+</body>
+</html>

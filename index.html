@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solar System 3D Explorer</title>
+    <!-- Load Tailwind CSS for base styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Three.js library for 3D rendering -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0d1117; /* Տիեզերքի մուգ ֆոն */
+            color: #e5e7eb;
+            margin: 0;
+            overflow: hidden; /* Թաքցնել պտտվող գոտիները */
+        }
+        #info-box {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            background-color: rgba(22, 27, 34, 0.9); /* Մուգ կիսաթափանցիկ ֆոն */
+            border-radius: 12px;
+            border: 1px solid #30363d;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            z-index: 10;
+            max-width: 90%;
+            transition: all 0.3s ease;
+        }
+        #info-text {
+            color: #ffcc00;
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+        /* Style for the link button */
+        #destruction-link {
+            background-color: #dc2626; /* Red-600 */
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: background-color 0.3s ease, transform 0.1s;
+            cursor: pointer;
+            margin-top: 10px;
+            display: inline-block;
+            box-shadow: 0 0 15px #f87171;
+            text-decoration: none; /* Հղման տեսքը կոճակի */
+        }
+        #destruction-link:hover {
+            background-color: #ef4444; /* Red-500 */
+            transform: scale(1.05);
+        }
+    </style>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let app, db, auth;
+
+        try {
+            if (Object.keys(firebaseConfig).length > 0) {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                // Նույնականացման կարգավորում
+                if (initialAuthToken) {
+                    signInWithCustomToken(auth, initialAuthToken).catch(e => console.error("Firebase Custom Auth failed:", e));
+                } else {
+                    signInAnonymously(auth).catch(e => console.error("Firebase Anonymous Auth failed:", e));
+                }
+            } else {
+                console.warn("Firebase configuration is missing.");
+            }
+        } catch (error) {
+            console.error("Firebase Initialization Error:", error);
+        }
+    </script>
+</head>
+<body>
+    <!-- Տեղեկատվական բլոկը 3D տեսարանի վրա -->
+    <div id="info-box">
+        <h1 class="text-2xl font-bold text-white mb-1">Արեգակնային Համակարգի Ուսումնասիրություն</h1>
+        <p id="info-text" class="text-sm mb-2">Սեղմեք մոլորակի վրա՝ հետքրքիր փաստեր իմանալու համար։</p>
+        <!-- Նոր հղման կոճակ դեպի ոչնչացման էջ -->
+        <a href="wochnchacum.html" id="destruction-link">
+            Գալակտիկայի Ոչնչացման Կենտրոն
+        </a>
+    </div>
+
+    <!-- Canvas-ը կտեղադրվի այստեղ Three.js-ի կողմից -->
+
+    <script>
+        let scene, camera, renderer, sun;
+let isDragging = false;
+let previousMousePosition = { x: 0, y: 0 };
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+let initialPinchDistance = null;
+const SUN_RADIUS = 3;
+const ORBIT_LINE_COLOR = 0x404040;
+
+// Մոլորակների տվյալներ և հղումների քարտեզ
+const SOLAR_SYSTEM = [
+    { name: 'Mercury', color: 0x8a8a8a, radius: 0.4, orbit: 8, speed: 0.020, armenianName: 'Մերկուրի', link: 'mercury.html' },
+    { name: 'Venus', color: 0xe8c784, radius: 0.7, orbit: 14, speed: 0.015, armenianName: 'Վեներա', link: 'venera.html' },
+    { name: 'Earth', color: 0x0077ff, radius: 0.8, orbit: 20, speed: 0.010, armenianName: 'Երկիր', link: 'erkir.html' },
+    { name: 'Mars', color: 0xc9582d, radius: 0.5, orbit: 28, speed: 0.008, armenianName: 'Մարս', link: 'mars.html' },
+    { name: 'Jupiter', color: 0xc8aa80, radius: 2.5, orbit: 45, speed: 0.005, armenianName: 'Յուպիտեր', link: 'yupiter.html' },
+    { name: 'Saturn', color: 0xe0d4b9, radius: 2.0, orbit: 60, speed: 0.004, armenianName: 'Սատուրն', link: 'saturn.html' },
+    { name: 'Uranus', color: 0xafeeee, radius: 1.5, orbit: 75, speed: 0.003, armenianName: 'Ուրան', link: 'uran.html' },
+    { name: 'Neptune', color: 0x000080, radius: 1.4, orbit: 90, speed: 0.002, armenianName: 'Նեպտուն', link: 'neptun.html' }
+];
+
+let planetObjects = [];
+const infoTextEl = document.getElementById('info-text');
+
+function getAuthFilePath(filename) {
+    return `./${filename}`;
+}
+
+function init() {
+    // Տեսարանի (Scene), Տեսախցիկի (Camera) և Ռենդերերի (Renderer) ստեղծում
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0d1117);
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.z = 120;    
+    camera.position.y = 20; 
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Արևի ստեղծում
+    const sunGeometry = new THREE.SphereGeometry(SUN_RADIUS, 32, 32);
+    const sunMaterial = new THREE.MeshPhongMaterial({
+        color: 0xffa500,
+        emissive: 0xffa500, 
+        emissiveIntensity: 0.8, 
+        shininess: 0
+    });
+    sun = new THREE.Mesh(sunGeometry, sunMaterial);
+    scene.add(sun);
+    sun.name = 'Sun'; // Անունը կարևոր է սեղմելու համար
+
+    // Լույսերի ավելացում
+    const sunLight = new THREE.PointLight(0xffffff, 4, 300);    
+    sunLight.position.set(0, 0, 0);
+    scene.add(sunLight);
+    const ambientLight = new THREE.AmbientLight(0x404040, 1);   
+    scene.add(ambientLight);
+
+    // Մոլորակների և ուղեծրերի ստեղծում
+    SOLAR_SYSTEM.forEach(data => {
+        const pivot = new THREE.Object3D(); // Պտտման կետ
+        sun.add(pivot);
+        
+        const geometry = new THREE.SphereGeometry(data.radius, 32, 32);
+        const material = new THREE.MeshPhongMaterial({ color: data.color, shininess: 10 });
+        const planet = new THREE.Mesh(geometry, material);
+        planet.position.x = data.orbit; 
+        planet.name = data.name; // Անունը կարևոր է սեղմելու համար
+        planet.link = data.link; // Հղումը պահել մոլորակի օբյեկտի վրա
+        pivot.add(planet);
+
+        const orbitGeometry = new THREE.TorusGeometry(data.orbit, 0.1, 16, 100);
+        const orbitMaterial = new THREE.MeshBasicMaterial({ color: ORBIT_LINE_COLOR, transparent: true, opacity: 0.3 });
+        const orbit = new THREE.Mesh(orbitGeometry, orbitMaterial);
+        orbit.rotation.x = Math.PI / 2;
+        sun.add(orbit);
+
+        planetObjects.push({ pivot: pivot, mesh: planet, speed: data.speed, name: data.name, armenianName: data.armenianName, link: data.link });
+    });
+
+    // Իրադարձությունների լսողների ավելացում
+    document.addEventListener('mousedown', onMouseDown, false);
+    document.addEventListener('mousemove', onMouseMove, false);
+    document.addEventListener('mouseup', onMouseUp, false);
+    document.addEventListener('wheel', onMouseWheel, false); 
+    document.addEventListener('touchstart', onTouchStart, false);
+    document.addEventListener('touchmove', onTouchMove, false);
+    document.addEventListener('touchend', onTouchEnd, false);
+    window.addEventListener('resize', onWindowResize, false);
+    renderer.domElement.addEventListener('click', onClick, false);
+    
+    animate();
+}
+
+// Անիմացիոն ցիկլ
+function animate() {
+    requestAnimationFrame(animate);
+
+    // Արևի առանցքային պտույտ
+    sun.rotation.y += 0.001;
+
+    // Մոլորակների պտույտը Արևի շուրջ և իրենց առանցքի շուրջ
+    planetObjects.forEach(planetObj => {
+        planetObj.pivot.rotation.y += planetObj.speed; // Ուղեծրային պտույտ
+        planetObj.mesh.rotation.y += 0.01; // Առանցքային պտույտ
+    });
+
+    renderer.render(scene, camera);
+}
+
+// Պատուհանի չափի փոփոխման մշակում
+function onWindowResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+// Տեսախցիկի կառավարումը մկնիկով (Rotation)
+function onMouseDown(event) {
+    isDragging = true;
+    previousMousePosition.x = event.clientX;
+    previousMousePosition.y = event.clientY;
+}
+
+function onMouseMove(event) {
+    if (!isDragging) return;
+
+    const deltaX = event.clientX - previousMousePosition.x;
+    const deltaY = event.clientY - previousMousePosition.y;
+
+    scene.rotation.y += deltaX * 0.005;
+    scene.rotation.x += deltaY * 0.005;
+
+    scene.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, scene.rotation.x));
+
+    previousMousePosition.x = event.clientX;
+    previousMousePosition.y = event.clientY;
+}
+
+function onMouseUp(event) {
+    isDragging = false;
+}
+
+// Մկնիկի անիվի (Wheel) մշակում՝ մոտեցնելու/հեռացնելու համար (Zoom)
+function onMouseWheel(event) {
+    const zoomSpeed = 0.05; 
+    camera.position.z += event.deltaY * zoomSpeed;
+
+    // Սահմանափակել զումի դիապազոնը
+    camera.position.z = Math.max(5, Math.min(200, camera.position.z));
+}
+
+// Սեղմման (Click) մշակում
+function onClick(event) {
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+
+    const intersectableObjects = [sun, ...planetObjects.map(p => p.mesh)];
+    const intersects = raycaster.intersectObjects(intersectableObjects);
+
+    for (let i = 0; i < intersects.length; i++) {
+        const clickedObject = intersects[i].object;
+        const planetName = clickedObject.name;
+        
+        // Գտնել մոլորակի տվյալները կամ Արևը
+        if (planetName === 'Sun') {
+            window.location.href = getAuthFilePath('sun.html'); // Արևի հղում
+            return;
+        } else if (planetName) {
+            // Գտնել մոլորակի օբյեկտը և նրա հղումը
+            const planetData = planetObjects.find(p => p.name === planetName);
+            if (planetData && planetData.link) {
+                window.location.href = getAuthFilePath(planetData.link); // Մոլորակի հղում
+                return;
+            }
+        }
+    }
+}
+
+// Զգայուն կառավարումները (Touch)
+function onTouchStart(event) {
+    if (event.touches.length === 1) {
+        // Մեկ մատով պտտում
+        isDragging = true;
+        previousMousePosition.x = event.touches[0].clientX;
+        previousMousePosition.y = event.touches[0].clientY;
+        initialPinchDistance = null;
+    } else if (event.touches.length === 2) {
+        // Երկու մատով զում (pinch)
+        isDragging = false;
+        const dx = event.touches[0].clientX - event.touches[1].clientX;
+        const dy = event.touches[0].clientY - event.touches[1].clientY;
+        initialPinchDistance = Math.sqrt(dx * dx + dy * dy);
+    }
+    event.preventDefault();
+}
+
+function onTouchMove(event) {
+    if (event.touches.length === 2) {
+        // Pinch Zoom Logic
+        if (initialPinchDistance === null) return;
+
+        const dx = event.touches[0].clientX - event.touches[1].clientX;
+        const dy = event.touches[0].clientY - event.touches[1].clientY;
+        const currentPinchDistance = Math.sqrt(dx * dx + dy * dy);
+
+        const deltaDistance = currentPinchDistance - initialPinchDistance;
+        const zoomSpeed = 0.5;
+        
+        camera.position.z -= deltaDistance * zoomSpeed * 0.005;
+
+        // Limit the zoom range
+        camera.position.z = Math.max(5, Math.min(200, camera.position.z));
+
+        initialPinchDistance = currentPinchDistance;
+
+    } else if (isDragging && event.touches.length === 1) {
+        // Single-finger rotation logic
+        const deltaX = event.touches[0].clientX - previousMousePosition.x;
+        const deltaY = event.touches[0].clientY - previousMousePosition.y;
+
+        scene.rotation.y += deltaX * 0.005;
+        scene.rotation.x += deltaY * 0.005;
+
+        scene.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, scene.rotation.x));
+
+        previousMousePosition.x = event.touches[0].clientX;
+        previousMousePosition.y = event.touches[0].clientY;
+    }
+    event.preventDefault();
+}
+
+function onTouchEnd(event) {
+    if (event.touches.length === 0) {
+        isDragging = false;
+        initialPinchDistance = null;
+    }
+}
+
+// Կանչել init ֆունկցիան, երբ պատուհանը բեռնվի
+window.onload = init;
+    </script>
+</body>
+</html>

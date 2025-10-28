@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="hy">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ուրանի 3D Մոդելավորում</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+            /* Ավելի մուգ, ավելի սառը ֆոն */
+            background-color: #050a14; 
+            color: #ffffff;
+        }
+        #scene-container {
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        .info-panel {
+            z-index: 10;
+            pointer-events: auto;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+            /* Ավելի ուժեղ blur */
+            backdrop-filter: blur(15px); 
+            /* Ավելի մուգ ֆոն */
+            background-color: rgba(5, 15, 30, 0.9); 
+            /* Շեշտադրված գույն */
+            border: 2px solid #5dbee9; 
+            /* Նոր Դիրք: Ներքև-Ձախ */
+            position: absolute;
+            bottom: 5rem; 
+            left: 1rem; 
+            top: auto !important;
+            right: auto !important;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="floating-fact-banner" 
+         class="absolute bottom-5 left-1/2 transform -translate-x-1/2 
+                p-5 rounded-xl shadow-2xl bg-sky-700/90 text-white text-xl font-bold 
+                transition-opacity duration-500 opacity-0 pointer-events-none 
+                w-11/12 max-w-xl text-center border-4 border-sky-400 z-20">
+    </div>
+
+    <div id="scene-container"></div>
+
+    <!-- Ինֆո վահանակը տեղափոխվել է ներքև-ձախ դիրք -->
+    <div class="info-panel p-6 md:w-80 w-11/12 max-w-sm rounded-xl text-white">
+        <h1 class="text-3xl font-bold mb-4 border-b pb-2 border-sky-400">Ուրան</h1>
+        <p id="status-message" class="text-xs mb-4 text-sky-400">Բեռնված է։ Կառավարեք տեսախցիկը մկնիկով/հպումով։</p>
+
+        <button id="guide-button" onclick="toggleGuide()" 
+                class="w-full py-2 mb-4 rounded-lg font-bold transition-all duration-200 
+                       bg-sky-600 hover:bg-sky-700 active:bg-sky-800 shadow-lg shadow-sky-500/50">
+            Սկսել Ավտոմատ Շրջագայությունը
+        </button>
+
+        <div class="space-y-3 text-sm">
+            <div class="flex justify-between">
+                <span class="text-sky-300">Կարգավիճակ:</span>
+                <span class="font-semibold">Սառցե Հսկա</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-sky-300">Թեքության Անկյուն:</span>
+                <span class="font-semibold">~98°</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-sky-300">Օրը Երկրային Ժամանակով:</span>
+                <span id="day-length">~17 ժամ</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-sky-300">Ամենամեծ Արբանյակը:</span>
+                <span class="font-semibold text-lime-300">Միրանդա</span>
+            </div>
+            <p id="tour-fact-display" class="mt-4 text-sm pt-3 border-t border-sky-500/50">
+                Ուրանը հայտնի է իր յուրահատուկ, կողքի վրա պտտվելու առանցքով։ Սեղմեք «Ավտոմատ Շրջագայություն» կոճակը՝ մոլորակը ուսումնասիրելու համար։
+            </p>
+        </div>
+        <p class="mt-4 text-xs text-center text-gray-400">
+            Օգտագործեք մկնիկը՝ պտտելու, մեծացնելու/փոքրացնելու (սքրոլ) և տեղաշարժելու համար, երբ գիդը անջատված է։
+        </p>
+    </div>
+
+    <script>
+        // Գլոբալ Փոփոխականներ
+        let scene, camera, renderer, controls, uranus, rings, miranda, uranusGlow;
+        const container = document.getElementById('scene-container');
+        const statusMessage = document.getElementById('status-message');
+        const guideButton = document.getElementById('guide-button');
+        const floatingFactBanner = document.getElementById('floating-fact-banner');
+        
+        // Ավտոմատ Գիդի Կարգավորումներ
+        let isGuideActive = false;
+        let guideStep = 0;
+        let stepStartTime = 0;
+        const stepDuration = 7000;
+        const clock = new THREE.Clock();
+        
+        // Շրջագայության Քայլերը
+        const tourSteps = [
+            { 
+                pos: new THREE.Vector3(0, 0, 15), 
+                target: new THREE.Vector3(0, 0, 0), 
+                name: "Ընդհանուր տեսք",
+                fact: "Բարի գալուստ Ուրան։ Այս սառցե հսկան յոթերորդ մոլորակն է Արեգակից և միակն է, որի անունը հին հունական աստվածություն է։" 
+            },
+            { 
+                pos: new THREE.Vector3(10, 5, 10), 
+                target: new THREE.Vector3(0, 0, 0), 
+                name: "Ծայրահեղ Թեքություն",
+                fact: "Ուրանը պտտվում է կողքի վրա (մոտ 98° թեքում)։ Ենթադրվում է, որ սա մեծ բախման արդյունք է։" 
+            },
+            { 
+                pos: new THREE.Vector3(-10, 0, 0), 
+                target: new THREE.Vector3(0, 0, 0), 
+                name: "Միրանդայի Ուղեծիր",
+                fact: "Միրանդան Ուրանի ամենազարմանալի արբանյակներից է՝ իր յուրահատուկ, կտրուկ երկրաբանական կազմավորումներով (քորոնաներով)։"
+            },
+            { 
+                pos: new THREE.Vector3(5, 0, 0), 
+                target: new THREE.Vector3(0, 0, 0), 
+                name: "Գույնի Գաղտնիքը",
+                fact: "Ուրանի բաց կապտա-կանաչ գույնը գալիս է մթնոլորտում առկա մեթանից, որը կլանում է կարմիր լույսը։" 
+            },
+            { 
+                pos: new THREE.Vector3(0, 8, 8), 
+                target: new THREE.Vector3(0, 0, 0), 
+                name: "Մուգ և Նեղ Օղակներ",
+                fact: "Ուրանի օղակային համակարգը երկրորդն էր, որը հայտնաբերվեց Արեգակնային համակարգում։ Դրանք շատ մուգ ու նեղ են։"
+            },
+            { 
+                pos: new THREE.Vector3(0, 0, 15), 
+                target: new THREE.Vector3(0, 0, 0), 
+                name: "Ավարտ",
+                fact: "Շրջագայությունն ավարտվեց։ Հիշեք, որ Ուրանն ունի ամենացուրտ մթնոլորտը՝ նվազագույնը -224 °C։" 
+            }
+        ];
+
+        // Գծային Ինտերպոլացիա
+        function lerpVectors(v0, v1, t) {
+            return v0.clone().lerp(v1, t);
+        }
+
+        function displayFact(fact) {
+            floatingFactBanner.textContent = fact;
+            floatingFactBanner.classList.remove('opacity-0');
+            floatingFactBanner.classList.add('opacity-100');
+        }
+
+        function hideFact() {
+            floatingFactBanner.classList.remove('opacity-100');
+            floatingFactBanner.classList.add('opacity-0');
+        }
+
+
+        // Միացնում/Անջատում է Ավտոմատ Գիդը
+        window.toggleGuide = function() {
+            isGuideActive = !isGuideActive;
+            
+            if (isGuideActive) {
+                guideStep = 0;
+                stepStartTime = clock.getElapsedTime();
+                controls.enabled = false;
+                guideButton.textContent = "Դադարեցնել Շրջագայությունը";
+                guideButton.classList.remove('bg-sky-600');
+                guideButton.classList.add('bg-red-600', 'hover:bg-red-700');
+                statusMessage.textContent = `Շրջագայությունը սկսված է։ Քայլ 1՝ ${tourSteps[0].name}`;
+                displayFact(tourSteps[0].fact);
+            } else {
+                endGuide();
+            }
+        }
+        
+        // Ավարտում է Շրջագայությունը
+        function endGuide() {
+            isGuideActive = false;
+            controls.enabled = true;
+            controls.update();
+            guideButton.textContent = "Սկսել Ավտոմատ Շրջագայությունը";
+            guideButton.classList.remove('bg-red-600', 'hover:bg-red-700');
+            guideButton.classList.add('bg-sky-600');
+            statusMessage.textContent = "Շրջագայությունն ավարտվեց։ Կառավարեք տեսախցիկը մկնիկով/հպումով։";
+            hideFact();
+        }
+
+        // Ուրանի թեքությունը (98 աստիճան)
+        const axialTilt = 98 * Math.PI / 180; 
+
+        // Սկզբնավորում է 3D Տեսարանը
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x050a14); // Խորը Տիեզերքի Ֆոն
+
+            const aspectRatio = container.clientWidth / container.clientHeight;
+            camera = new THREE.PerspectiveCamera(50, aspectRatio, 0.1, 1000);
+            camera.position.set(0, 0, 15);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            container.appendChild(renderer.domElement);
+
+            // Ավելի նուրբ լույսեր
+            const ambientLight = new THREE.AmbientLight(0x404040); 
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+            directionalLight.position.set(10, 5, 10).normalize();
+            scene.add(directionalLight);
+
+            // Ուրանի մոլորակ (առանց փայլի)
+            const uranusGeometry = new THREE.SphereGeometry(3, 64, 64);
+            const uranusMaterial = new THREE.MeshLambertMaterial({ // Փոխված է LambertMaterial-ով (ավելի փափուկ տեսք)
+                color: 0x87CEFA, // Light Sky Blue
+                emissive: 0x111111
+            });
+            uranus = new THREE.Mesh(uranusGeometry, uranusMaterial);
+            uranus.rotation.z = axialTilt; 
+            scene.add(uranus);
+            
+            // Ուրանի Ատմոսֆերայի Փայլ (Glow)
+            const glowGeometry = new THREE.SphereGeometry(3.3, 64, 64);
+            const glowMaterial = new THREE.MeshBasicMaterial({
+                color: 0x87CEFA,
+                side: THREE.BackSide, // Ռենդերինգ ներսից
+                transparent: true,
+                opacity: 0.15,
+                blending: THREE.AdditiveBlending // Փայլի էֆեկտ
+            });
+            uranusGlow = new THREE.Mesh(glowGeometry, glowMaterial);
+            uranusGlow.rotation.z = axialTilt; 
+            scene.add(uranusGlow);
+
+
+            // Ուրանի օղակներ (ավելի նեղ և մուգ)
+            const ringGeometry = new THREE.RingGeometry(4.5, 4.7, 128); // Ավելի նեղ
+            const ringMaterial = new THREE.MeshBasicMaterial({
+                color: 0x555555, 
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.8
+            });
+            rings = new THREE.Mesh(ringGeometry, ringMaterial);
+            rings.rotation.x = Math.PI / 2;
+            rings.rotation.z = axialTilt; 
+            scene.add(rings);
+            
+            // Միրանդա արբանյակ
+            const mirandaGeometry = new THREE.SphereGeometry(0.2, 32, 32); 
+            const mirandaMaterial = new THREE.MeshPhongMaterial({
+                color: 0xffffdd, 
+                emissive: 0x111111
+            });
+            miranda = new THREE.Mesh(mirandaGeometry, mirandaMaterial);
+            miranda.position.set(6, 0, 0); 
+            miranda.rotation.z = axialTilt; // Արբանյակի ուղեծիրը թեքված է
+            scene.add(miranda);
+            
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true; 
+            controls.dampingFactor = 0.05;
+            controls.screenSpacePanning = false;
+            controls.minDistance = 6; 
+            controls.maxDistance = 30; 
+
+            window.addEventListener('resize', onWindowResize, false);
+            statusMessage.textContent = "Բեռնված է։ Մկնիկի կառավարումը ակտիվ է։";
+            animate();
+        }
+
+        function onWindowResize() {
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        // Անիմացիոն Ցիկլ
+        let mirandaOrbitAngle = 0;
+        const mirandaOrbitRadius = 6; 
+        const mirandaOrbitSpeed = 0.02; // Դանդաղեցված ուղեծիր (0.05-ից 0.02)
+
+        function animate(time) {
+            requestAnimationFrame(animate);
+
+            const normalizedTime = time / 1000; // Ժամանակը վայրկյաններով
+
+            if (uranus) {
+                uranus.rotation.y += 0.005; // Ուրանի արագ պտույտը մնում է նույնը
+                uranusGlow.rotation.y += 0.005;
+            }
+            
+            // Ատմոսֆերայի բաբախող փայլ
+            if (uranusGlow) {
+                const pulseSpeed = 1.0; // Բաբախյունի արագություն
+                const minOpacity = 0.15;
+                const maxOpacity = 0.40; 
+                
+                // Հաշվարկում ենք օպերացիան՝ օգտագործելով Sine ալիքը
+                const currentOpacity = minOpacity + ((maxOpacity - minOpacity) * (Math.sin(normalizedTime * pulseSpeed) + 1) / 2);
+                uranusGlow.material.opacity = currentOpacity;
+            }
+            
+            if (miranda) {
+                mirandaOrbitAngle += mirandaOrbitSpeed;
+                
+                // Պտտում ենք Միրանդայի դիրքը
+                const x = Math.cos(mirandaOrbitAngle) * mirandaOrbitRadius;
+                const z = Math.sin(mirandaOrbitAngle) * mirandaOrbitRadius;
+
+                // Կիրառում ենք թեքվածություն
+                miranda.position.x = x * Math.cos(axialTilt) + z * Math.sin(axialTilt);
+                miranda.position.z = z * Math.cos(axialTilt) - x * Math.sin(axialTilt);
+            }
+            
+            if (isGuideActive) {
+                const currentTime = clock.getElapsedTime();
+                const elapsed = currentTime - stepStartTime;
+                const t = Math.min(1, elapsed / (stepDuration / 1000));
+
+                if (guideStep < tourSteps.length - 1) {
+                    const startStep = tourSteps[guideStep];
+                    const nextStep = tourSteps[guideStep + 1];
+
+                    const newPos = lerpVectors(startStep.pos, nextStep.pos, t);
+                    const newTarget = lerpVectors(startStep.target, nextStep.target, t);
+                    
+                    camera.position.copy(newPos);
+                    controls.target.copy(newTarget);
+
+                    if (t === 1) {
+                        guideStep++;
+                        stepStartTime = currentTime;
+                        if (guideStep < tourSteps.length) {
+                             statusMessage.textContent = `Շրջագայությունը սկսված է։ Քայլ ${guideStep + 1}՝ ${tourSteps[guideStep].name}`;
+                             displayFact(tourSteps[guideStep].fact); 
+                        }
+                    }
+                } else {
+                    endGuide();
+                }
+            }
+            
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // Սկսում ենք մոդելավորումը
+        window.onload = function() {
+            try {
+                init();
+            } catch (error) {
+                console.error("3D տեսարանի սկզբնավորման սխալ:", error);
+                statusMessage.textContent = "Սխալ 3D մոդելի բեռնման ժամանակ։ Ստուգեք կոնսոլը։";
+                statusMessage.classList.add('text-red-500');
+            }
+        };
+
+    </script>
+</body>
+</html>
