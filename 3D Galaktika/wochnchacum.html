@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="hy">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Արեգակնային Համակարգ. ԳԱԼԱԿՏԻԿԱԿԱՆ ՈՉՆՉԱՑՈՒՄ</title>
+    <!-- Բեռնում ենք Tailwind CSS-ը գեղեցիկ դիզայնի համար -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Բեռնում ենք Three.js-ը 3D գրաֆիկայի համար -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Բեռնում ենք OrbitControls-ը տեսախցիկի շարժման համար -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Armenian:wght@400;700;900&display=swap');
+        
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Noto Sans Armenian', sans-serif;
+            background-color: #0d0d18; 
+            color: #ffffff;
+        }
+        
+        canvas {
+            display: block;
+        }
+        
+        #infoPanel {
+            transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94); 
+            transform: translateX(100%); 
+        }
+
+        #infoPanel.active {
+            transform: translateX(0); 
+        }
+
+        @media (min-width: 768px) {
+            #infoPanel {
+                width: 30%; 
+            }
+        }
+
+        .control-btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 900;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.2); 
+            border: 2px solid;
+            background-image: linear-gradient(to right, #4c4c6e, #2e2e4f);
+        }
+        .control-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(255, 0, 0, 0.7);
+        }
+        
+        /* ԿԻՆԵՄԱՏՈԳՐԱՖԻԿ ՀԱՂՈՐԴԱԳՐՈՒԹՅԱՆ ՈՃ */
+        #cinematicMessage {
+            position: fixed;
+            bottom: 2%; 
+            right: 2%; 
+            z-index: 100;
+            padding: 1rem 2rem;
+            border-radius: 0.75rem;
+            text-align: right;
+            font-size: 1.25rem; 
+            font-weight: 900;
+            color: #ffcc00;
+            background: rgba(13, 13, 24, 0.85); 
+            border: 4px solid rgba(255, 69, 0, 0.9); 
+            box-shadow: 0 0 30px rgba(255, 69, 0, 0.8); 
+            text-shadow: 0 0 7px rgba(0, 0, 0, 0.9);
+            opacity: 0;
+            transition: opacity 0.5s;
+            pointer-events: none;
+            max-width: 450px; 
+        }
+
+        #cinematicMessage.active {
+             opacity: 1;
+        }
+
+        /* Ամբողջ Էկրանի Կարմիր Ֆլեշ */
+        #impactFlash {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(255, 0, 0, 1.0);
+            z-index: 9999;
+            opacity: 1;
+            transition: opacity 0.3s ease-out; 
+            pointer-events: none;
+        }
+        
+        /* ՎԵՐՋՆԱԿԱՆ ԷԿՐԱՆԻ ԾԱԾԿՈՒՅԹ */
+        #finalOverlay {
+            opacity: 0;
+            transition: opacity 5000ms ease-in-out; /* 5 վայրկյան դանդաղ մթնեցում */
+            pointer-events: none; /* Սկզբում անհասանելի */
+        }
+        
+        #finalOverlay.visible {
+            opacity: 1;
+            pointer-events: all; /* Հասանելի, երբ մթնած է */
+        }
+    </style>
+</head>
+<body>
+    <!-- Կինեմատոգրաֆիկ Հաղորդագրության Վահանակ -->
+    <div id="cinematicMessage" class="hidden"></div>
+    
+    <!-- Կառավարման Վահանակ -->
+    <div id="controls" class="fixed bottom-4 left-4 z-50 p-4 bg-gray-900 bg-opacity-80 rounded-xl shadow-2xl flex space-x-4">
+        <button id="pausePlayBtn" onclick="togglePause()" class="control-btn border-yellow-600 bg-yellow-600 text-white hover:bg-yellow-500 hover:border-yellow-500">
+            Դադարեցնել Շարժումը
+        </button>
+        <button onclick="resetFullSimulation(true)" class="control-btn border-blue-600 bg-blue-600 text-white hover:bg-blue-500 hover:border-blue-500">
+            Վերագործարկել Համակարգը
+        </button>
+        <div class="text-sm text-gray-400 flex items-center">
+            Սեղմեք մարմնի վրա՝ հարվածը սկսելու համար։
+        </div>
+    </div>
+
+    <!-- Տեղեկատվական Վահանակ (Ինֆո Պանել) -->
+    <div id="infoPanel" class="fixed right-0 top-0 h-full w-full md:w-1/3 p-6 bg-gray-900 bg-opacity-95 z-50 shadow-2xl border-l-4 border-yellow-400 overflow-y-auto">
+        <button onclick="hideInfo()" class="absolute top-4 right-4 text-3xl text-yellow-400 hover:text-white transition duration-300">&times;</button>
+        
+        <h2 id="planetName" class="text-4xl font-extrabold mb-4 pt-10 text-yellow-400 border-b border-yellow-400 pb-2">Ընտրեք մարմին</h2>
+        
+        <div class="mt-6 space-y-4">
+            <div id="planetPreviewContainer" class="h-40 bg-gray-700 rounded-lg flex items-center justify-center text-gray-400 text-sm overflow-hidden">
+                Օբյեկտի 3D Պրեևյու
+            </div>
+            
+            <p id="planetFact" class="text-lg leading-relaxed text-gray-200">
+                Խնդրում ենք շարժել տեսախցիկը կամ սեղմել (հպվել) մարմնի վրա։
+            </p>
+            
+            <div class="space-y-2 text-gray-300">
+                <p id="pRadius" class="text-base"></p>
+                <p id="pDistance" class="text-base"></p>
+                <p id="pOrbitSpeed" class="text-base"></p>
+            </div>
+            
+            <!-- ՀԱՐՎԱԾԻ ԿԱՌԱՎԱՐՈՒՄ -->
+            <button id="impactBtn" onclick="prepareImpact()" class="control-btn bg-red-600 border-red-600 text-white w-full mt-4 text-xl hidden">
+                Հարվածել Մոլորակին
+            </button>
+            
+        </div>
+    </div>
+
+    <!-- Բեռնման Ինդիկատոր (Loading Indicator) -->
+    <div id="loading" class="fixed inset-0 flex items-center justify-center bg-gray-900 z-50">
+        <div class="text-center">
+            <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-yellow-500 mx-auto"></div>
+            <p class="mt-4 text-xl text-yellow-400">Բեռնում...</p>
+        </div>
+    </div>
+    
+    <!-- Վերջնական Էկրանի Ծածկույթ (Final Overlay) -->
+    <div id="finalOverlay" class="fixed inset-0 bg-black z-[10000] flex flex-col items-center justify-center transition-opacity duration-[5000ms] pointer-events-none">
+        <div id="finalMessageContent" class="text-center">
+            <h1 class="text-8xl font-black text-white mb-10 tracking-widest" style="text-shadow: 0 0 20px rgba(255, 255, 255, 0.7);">ՎԵՐՋ</h1>
+            <div id="finalButtons" class="space-y-4 mt-12 opacity-0 transition-opacity duration-2000">
+                <button id="restartBtn" onclick="location.reload();" class="control-btn border-yellow-400 bg-yellow-600 text-black hover:bg-yellow-500 text-2xl w-80">
+                    Սկսել կրկին
+                </button>
+                <a href="Solar System Explorer/index.html" class="control-btn border-gray-400 bg-gray-600 text-white hover:bg-gray-500 text-xl w-80 block text-center py-4">
+                    Գլխավոր էջ
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Գլոբալ Փոփոխականներ
+        let scene, camera, renderer, controls;
+        let sun, planets = [];
+        let raycaster, mouse;
+        
+        let isPaused = false; 
+        let selectedOutline = null; 
+        
+        // ԿԻՆԵՄԱՏՈԳՐԱՖԻԿ ՓՈՓՈԽԱԿԱՆՆԵՐ
+        let targetMesh = null; 
+        let asteroidMesh = null; 
+        let asteroidLight = null; 
+        let impactLight = null; 
+        let cinematicStartTime = 0;
+        const cinematicDuration = 14000; // 14 վայրկյան կինեմատիկայի համար
+        const IMPACT_POINT = 0.97; // Հարվածի կետը. 0.97-ից հետո սկսվում է դրաման
+        let simulationState = 'IDLE'; // IDLE, APPROACHING, IMPACTING, AFTERMATH, SUN_IMPACT_SEQUENCE, CLEANUP, FINAL_SEQUENCE
+        let cinematicMessage = document.getElementById('cinematicMessage');
+        let explosionParticles = null;
+        let shockwaveMesh = null; 
+        let targetInitialPosition = new THREE.Vector3();
+        let cameraShakeIntensity = 0;
+        let cameraJitterIntensity = 0; 
+        
+        // ԱՐԵՎԻ ՈՉՆՉԱՑՄԱՆ ՀԱՄԱՐ 
+        let planetExplosionIndex = 0;
+        let nextExplosionTime = 0;
+        const explosionInterval = 4000; // 4 վայրկյան յուրաքանչյուր մոլորակի միջև
+        let planetsToDestroy = []; 
+        
+        // Տարբեր գույներ երկնաքարերի համար
+        const impactorColors = [0x00ffff, 0xffa500, 0xff00cc, 0x00ff00, 0x9900ff]; 
+        // Տեսախցիկի ռեժիմներ
+        const cinematicStyles = ['ORBIT_ZOOM', 'SIDE_PURSUE', 'REAR_DIVE']; 
+
+        const infoPanel = document.getElementById('infoPanel');
+        const loadingScreen = document.getElementById('loading');
+        const pausePlayBtn = document.getElementById('pausePlayBtn');
+        const impactBtn = document.getElementById('impactBtn');
+        const finalOverlay = document.getElementById('finalOverlay');
+        
+        // Տիեզերական Տվյալներ (Չի Փոխվում)
+        const initialPlanetData = [
+            { name: "Արև (Sun)", fact: "Արևը G տեսակի գլխավոր հաջորդականության աստղ է և մեր համակարգի կյանքի աղբյուրը։", radius: 15, color: 0xffa500, distance: 0, rotationSpeed: 0.0005, orbitSpeed: 0, isSun: true, details: { radius: "695,700 կմ", distance: "0", orbit: "Կենտրոն" } },
+            { name: "Մերկուրի (Mercury)", fact: "Մերկուրին ամենաարագ մոլորակն է։", radius: 1.5, color: 0xaa8866, distance: 20, rotationSpeed: 0.008, orbitSpeed: 0.00016, details: { radius: "2,440 կմ", distance: "58 մլն կմ", orbit: "0.00016 ռադ/ցիկլ" } },
+            { name: "Երկիր (Earth)", fact: "Երկիրը միակն է, որտեղ հայտնի է կյանքի գոյությանը։", radius: 3, color: 0x0066ff, distance: 50, rotationSpeed: 0.005, orbitSpeed: 0.00007, details: { radius: "6,371 կմ", distance: "150 մլն կմ", orbit: "0.00007 ռադ/ցիկլ" } },
+            { name: "Մարս (Mars)", fact: "Մարսն ունի Արեգակնային համակարգի ամենաբարձր լեռը՝ Օլիմպոս Մոնսը։", radius: 2.7, color: 0xcc4400, distance: 70, rotationSpeed: 0.004, orbitSpeed: 0.00004, details: { radius: "3,390 կմ", distance: "228 մլն կմ", orbit: "0.00004 ռադ/ցիկլ" } },
+            { name: "Յուպիտեր (Jupiter)", fact: "Արեգակնային համակարգի ամենամեծ մոլորակը՝ հսկա գազային գունդ։", radius: 9, color: 0xccaa77, distance: 120, rotationSpeed: 0.015, orbitSpeed: 0.00003, details: { radius: "69,911 կմ", distance: "778 մլն կմ", orbit: "0.00003 ռադ/ցիկլ" } },
+            { name: "Սատուրն (Saturn)", fact: "Հայտնի է իր հսկայական, գեղեցիկ օղակներով։", radius: 6.5, color: 0xf5f5dc, distance: 170, rotationSpeed: 0.01, orbitSpeed: 0.000007, isRinged: true, ringInnerRadius: 8, ringOuterRadius: 12, ringColor: 0x888888, details: { radius: "60,268 կմ", distance: "1.4 մլրդ կմ", orbit: "0.000007 ռադ/ցիկլ" } },
+            { name: "Նեպտուն (Neptune)", fact: "Արեգակնային համակարգի ամենահեռու հայտնի մոլորակը։", radius: 4.8, color: 0x000088, distance: 270, rotationSpeed: 0.006, orbitSpeed: 0.000002, details: { radius: "24,764 կմ", distance: "4.5 մլրդ կմ", orbit: "0.000002 ռադ/ցիկլ" } },
+        ];
+
+        // ------------------------------------
+        // ՌԱՆԴՈՄԻԶԱՑԻԱՅԻ ՖՈՒՆԿՑԻԱՆԵՐ
+        // ------------------------------------
+
+        // Գեներացնում է պատահական դիրք թիրախից հեռու
+        function getRandomApproachVector(targetPos, distance = 500) {
+            // Ստեղծում է պատահական կետ գնդի վրա
+            const x = (Math.random() * 2 - 1) * distance; 
+            const y = (Math.random() * 2 - 1) * distance;
+            const z = (Math.random() * 2 - 1) * distance;
+
+            // Նորմալիզացնում և բազմապատկում հեռավորությամբ
+            const direction = new THREE.Vector3(x, y, z).normalize().multiplyScalar(distance);
+            
+            // Վերադարձնում է դիրքը թիրախի նկատմամբ
+            return new THREE.Vector3().addVectors(targetPos, direction);
+        }
+
+        // ------------------------------------
+        // 1. ԻՆԻՑԻԱԼԻԶԱՑԻԱ ԵՎ ՎԵՐԱԳՈՐԾԱՐԿՈՒՄ
+        // ------------------------------------
+        
+        function clearScene() {
+             while(scene.children.length > 0){ 
+                const child = scene.children[0];
+                 // Ջնջում ենք բոլոր մասնիկները, լույսերը, ալիքները
+                if (child.userData.isParticleSystem || child.userData.isShockwave || child.isLight || child.isObject3D) {
+                    scene.remove(child);
+                } else if (child.isMesh || child.isPoints) {
+                    child.geometry.dispose();
+                    if (child.material) {
+                        if (Array.isArray(child.material)) {
+                            child.material.forEach(m => m.dispose());
+                        } else {
+                            child.material.dispose();
+                        }
+                    }
+                    scene.remove(child);
+                } else {
+                    scene.remove(child);
+                }
+            }
+             planets = [];
+             sun = null;
+        }
+
+        function resetFullSimulation(isFromButton = false) {
+             // Եթե կանչվում է կոճակից, պարզապես թարմացրեք էջը
+            if (isFromButton) {
+                location.reload();
+                return;
+            }
+
+            if (renderer) {
+                clearScene();
+                simulationState = 'IDLE';
+                isPaused = false;
+                planetExplosionIndex = 0;
+                targetMesh = null;
+                asteroidMesh = null;
+                shockwaveMesh = null;
+                cameraShakeIntensity = 0;
+                cameraJitterIntensity = 0;
+                controls.enabled = true;
+                planetsToDestroy = []; 
+                
+                hideInfo();
+                hideMessage();
+                
+                // Թաքցնում ենք Վերջնական Ծածկույթը
+                finalOverlay.classList.remove('visible');
+                finalOverlay.style.opacity = 0; 
+
+                pausePlayBtn.textContent = 'Դադարեցնել Շարժումը';
+                pausePlayBtn.classList.remove('bg-green-600', 'border-green-600');
+                pausePlayBtn.classList.add('bg-yellow-600', 'border-yellow-600');
+                
+                const sunLight = new THREE.PointLight(0xffffff, 2, 0); 
+                scene.add(sunLight);
+                scene.add(new THREE.AmbientLight(0x222222)); 
+                createStars();
+                createPlanets();
+                
+                camera.position.set(0, 150, 400); 
+                controls.update(); 
+                document.getElementById('solarSystemCanvas').style.cursor = 'grab';
+            } else {
+                 init();
+                 animate();
+            }
+        }
+        
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a1a); 
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 150, 400); 
+            
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.domElement.id = 'solarSystemCanvas';
+            document.body.appendChild(renderer.domElement);
+            
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true; 
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 30; 
+            controls.maxDistance = 600; 
+            
+            resetFullSimulation(); 
+            
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+
+            window.addEventListener('resize', onWindowResize, false);
+            renderer.domElement.addEventListener('pointerup', onPlanetClick, false);
+            
+            loadingScreen.style.display = 'none';
+        }
+
+        function createPlanets() {
+             initialPlanetData.forEach((data) => {
+                let mesh;
+                
+                if (data.isSun) {
+                    const geometry = new THREE.SphereGeometry(data.radius, 64, 64);
+                    const material = new THREE.MeshBasicMaterial({ color: data.color });
+                    mesh = new THREE.Mesh(geometry, material);
+                    sun = mesh;
+                    mesh.add(new THREE.PointLight(0xffccaa, 5, 0));
+                    scene.add(mesh); 
+                    mesh.userData = { 
+                        name: data.name, 
+                        isSun: true, 
+                        data: data,
+                        originalColorHex: data.color, 
+                        originalColor: new THREE.Color(data.color) 
+                    };
+                } else {
+                    const geometry = new THREE.SphereGeometry(data.radius, 32, 32);
+                    const material = new THREE.MeshPhongMaterial({ color: data.color, specular: 0x888888, shininess: 30 });
+                    mesh = new THREE.Mesh(geometry, material);
+                    
+                    const orbitObject = new THREE.Object3D();
+                    orbitObject.add(mesh);
+                    mesh.position.set(data.distance, 0, 0); 
+                    
+                    if (data.isRinged) {
+                        const ringGeometry = new THREE.RingGeometry(data.ringInnerRadius, data.ringOuterRadius, 64);
+                        const ringMaterial = new THREE.MeshPhongMaterial({ color: data.ringColor, side: THREE.DoubleSide, shininess: 50, transparent: true, opacity: 0.7 });
+                        const ringMesh = new THREE.Mesh(ringGeometry, ringMaterial);
+                        ringMesh.rotation.x = Math.PI / 2;
+                        mesh.add(ringMesh); 
+                    }
+                    
+                    const orbitLineGeometry = new THREE.RingGeometry(data.distance - 0.2, data.distance + 0.2, 256);
+                    const orbitLineMaterial = new THREE.MeshBasicMaterial({ color: 0x222244, side: THREE.DoubleSide, opacity: 0.3, transparent: true });
+                    const orbitLineMesh = new THREE.Mesh(orbitLineGeometry, orbitLineMaterial);
+                    orbitLineMesh.rotation.x = Math.PI / 2; 
+                    scene.add(orbitLineMesh);
+
+                    let planetEntry = { mesh: mesh, orbit: orbitObject, data: data, angle: 0, moons: [] };
+                    mesh.userData = { 
+                        name: data.name, 
+                        isPlanet: true, 
+                        data: data, 
+                        originalColorHex: data.color,
+                        originalColor: new THREE.Color(data.color),
+                        isDamaged: false, // Վնասվածության կարգավիճակ
+                        damageTimer: 0 // Վնասի ցուցադրման ժամանակաչափ
+                    };
+                    
+                    planets.push(planetEntry);
+                    scene.add(orbitObject);
+                }
+            });
+        }
+        
+        function createStars() {
+            const geometry = new THREE.BufferGeometry();
+            const vertices = [];
+            for (let i = 0; i < 10000; i++) {
+                const x = (Math.random() - 0.5) * 2000;
+                const y = (Math.random() - 0.5) * 2000;
+                const z = (Math.random() - 0.5) * 2000;
+                vertices.push(x, y, z);
+            }
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+            const material = new THREE.PointsMaterial({ color: 0xffffff, size: 0.5 });
+            scene.add(new THREE.Points(geometry, material));
+        }
+
+        // ------------------------------------
+        // 2. ՕԳՆԱԿԱՆ ՖՈՒՆԿՑԻԱՆԵՐ & ԸՆՏՐՈՒԹՅՈՒՆ
+        // ------------------------------------
+        function onPlanetClick(event) {
+            if (simulationState !== 'IDLE') return; 
+
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+
+            const objects = [sun];
+            planets.forEach(p => {
+                if (p.mesh) objects.push(p.mesh); 
+            });
+
+            const intersects = raycaster.intersectObjects(objects, false); 
+
+            if (intersects.length > 0) { 
+                const clickedMesh = intersects[0].object;
+                
+                clearSelectionOutline(); 
+                targetMesh = clickedMesh; 
+                targetMesh.getWorldPosition(targetInitialPosition); 
+                
+                const radius = clickedMesh.geometry.parameters.radius || 1;
+                const outlineGeometry = new THREE.SphereGeometry(radius * 1.1, 32, 32); 
+                const outlineMaterial = new THREE.MeshBasicMaterial({ 
+                    color: clickedMesh.userData.isSun ? 0xff00ff : 0xf59e0b, side: THREE.BackSide, transparent: true, opacity: 0.8 
+                });
+                
+                selectedOutline = new THREE.Mesh(outlineGeometry, outlineMaterial);
+                clickedMesh.add(selectedOutline); 
+
+                if (clickedMesh.userData && clickedMesh.userData.data) {
+                    displayInfo(clickedMesh.userData.data);
+                    impactBtn.classList.remove('hidden'); 
+                    
+                    if (clickedMesh.userData.isSun) {
+                         impactBtn.textContent = 'ԱՐԵՎԻ ՈՉՆՉԱՑՈՒՄ (ԳԱԼԱԿՏԻԿԱԿԱՆ ՄԵԳԱ ՊԱՅԹՅՈՒՆ)';
+                         impactBtn.classList.remove('bg-red-600', 'border-red-600');
+                         impactBtn.classList.add('bg-purple-800', 'border-purple-600', 'shadow-purple-500/50');
+                    } else {
+                         impactBtn.textContent = 'Հաստատել Հարվածը (Մոլորակի Ոչնչացում)';
+                         impactBtn.classList.remove('bg-purple-800', 'border-purple-600', 'shadow-purple-500/50');
+                         impactBtn.classList.add('bg-red-600', 'border-red-600');
+                    }
+                }
+            } else {
+                hideInfo();
+                clearSelectionOutline();
+                targetMesh = null;
+            }
+        }
+        
+        function clearSelectionOutline() {
+            if (selectedOutline) {
+                selectedOutline.parent.remove(selectedOutline); 
+                selectedOutline = null;
+            }
+        }
+
+        function showMessage(text, duration = 4000) {
+            cinematicMessage.innerHTML = text;
+            cinematicMessage.classList.remove('hidden');
+            setTimeout(() => {
+                cinematicMessage.classList.add('active');
+            }, 50);        
+            if (duration < 10000) { 
+                setTimeout(hideMessage, duration);
+            }
+        }
+
+        function hideMessage() {
+            cinematicMessage.classList.remove('active');
+            setTimeout(() => {
+                cinematicMessage.classList.add('hidden');
+            }, 500); 
+        }
+
+        // ------------------------------------
+        // 3. ԿԻՆԵՄԱՏՈԳՐԱՖԻԿ ՓՈՒԼԵՐ ԵՎ ՀԱՐՎԱԾ
+        // ------------------------------------
+        
+        function prepareImpact() {
+            if (!targetMesh) return;
+            
+            hideInfo();
+            isPaused = true;
+            pausePlayBtn.textContent = 'Շարունակել Շարժումը';
+            pausePlayBtn.classList.remove('bg-yellow-600', 'border-yellow-600');
+            pausePlayBtn.classList.add('bg-green-600', 'border-green-600');
+            clearSelectionOutline();       
+            const targetPos = targetInitialPosition;
+            const randomColor = impactorColors[Math.floor(Math.random() * impactorColors.length)];
+            const style = cinematicStyles[Math.floor(Math.random() * cinematicStyles.length)];
+            createAsteroid(targetMesh.userData.isSun, randomColor, style); 
+            cinematicStartTime = Date.now();
+            simulationState = 'APPROACHING';
+            controls.enabled = false; 
+            document.getElementById('solarSystemCanvas').style.cursor = 'none'; 
+            let asteroidStartPos;
+            if (targetMesh.userData.isSun) {
+                const distance = 800;
+                asteroidStartPos = new THREE.Vector3(
+                    targetPos.x + (Math.random() - 0.5) * 50,
+                    targetPos.y + distance,
+                    targetPos.z + (Math.random() - 0.5) * 50
+                );
+            } else {
+                asteroidStartPos = getRandomApproachVector(targetPos, 500);
+            }
+
+            asteroidMesh.position.copy(asteroidStartPos);
+            asteroidMesh.userData.startPos = asteroidStartPos;
+            asteroidMesh.userData.cinematicStyle = style; 
+            const startCamPos = new THREE.Vector3().subVectors(asteroidStartPos, targetPos).normalize().multiplyScalar(300).add(targetPos);
+            camera.position.copy(startCamPos);
+            camera.lookAt(targetPos);    
+            showMessage(`ԹԻՐԱԽԸ ԸՆՏՐՎԱԾ Է: ${targetMesh.userData.name} | ՈՃԸ: ${style}`, 10000); 
+        }
+
+        // ՄՈԼՈՐԱԿԻ ՊԱՅԹՅՈՒՆ
+        function finalPlanetExplosion(meshToDestroy) {
+            const pPos = new THREE.Vector3();
+            meshToDestroy.getWorldPosition(pPos);
+            triggerRedFlash(0.8);
+            const particleCount = 200000;
+            const speedMultiplier = 20;
+            const colorHex = meshToDestroy.userData.originalColorHex || 0xdddddd;            
+            explosionParticles = createExplosionParticles(pPos, particleCount, 4, speedMultiplier, colorHex, 0.02);
+            scene.add(explosionParticles);            
+            if (meshToDestroy.parent) {
+                meshToDestroy.parent.remove(meshToDestroy); 
+                planets = planets.filter(p => p.mesh !== meshToDestroy); 
+            }
+            
+            targetMesh = null;
+            
+            showMessage("ՄՈԼՈՐԱԿԸ ՈՉՆՉԱՑՎԱԾ Է:", 4000);
+            
+            // Վերադարձ IDLE ռեժիմ
+            setTimeout(() => resetSimulation(false), 2500); 
+        }
+
+        // ՄՈԼՈՐԱԿԻ ՎՆԱՍՄԱՆ ՓՈՒԼԸ ՍԿՍԵԼԸ 
+        function destroyPlanetCinematically(meshToDestroy) {
+            if (!meshToDestroy || meshToDestroy.userData.isDestroyed) return;
+            meshToDestroy.userData.isDestroyed = true; 
+            meshToDestroy.userData.damageTimer = 50; 
+            meshToDestroy.userData.damageColorTarget = new THREE.Color(0xff00ff); 
+            simulationState = 'AFTERMATH'; 
+            targetMesh = meshToDestroy; 
+            cameraShakeIntensity = 4.0;
+            cameraJitterIntensity = 2.0;         
+            showMessage(`ՄՈԼՈՐԱԿԸ ԿՈՐՑՆՈՒՄ Է ԿԱՅՈՒՆՈՒԹՅՈՒՆԸ...`, 1500);
+        }
+
+        function createAsteroid(isSunTarget, color, style) {
+            let geometry;
+            let material;            
+            if (isSunTarget) {
+                geometry = new THREE.SphereGeometry(5, 16); 
+                material = new THREE.MeshPhongMaterial({ color: color, shininess: 50, flatShading: true }); 
+            } else {
+                geometry = new THREE.DodecahedronGeometry(3.5, 0); 
+                material = new THREE.MeshPhongMaterial({ color: color, shininess: 80, flatShading: true }); 
+            }
+            
+            asteroidMesh = new THREE.Mesh(geometry, material);
+            asteroidLight = new THREE.PointLight(color, isSunTarget ? 30 : 50, 200, 2); 
+            asteroidMesh.add(asteroidLight);
+            asteroidMesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+            asteroidMesh.userData.rotationSpeed = new THREE.Vector3(Math.random() * 0.05, Math.random() * 0.05, Math.random() * 0.05);
+            scene.add(asteroidMesh);
+        }
+        
+        function createShockwave(position, color = 0xffa500) {
+            const geometry = new THREE.SphereGeometry(1, 16, 16); 
+            const material = new THREE.MeshBasicMaterial({ 
+                color: color, 
+                transparent: true, 
+                opacity: 1.0, 
+                side: THREE.BackSide, 
+                blending: THREE.AdditiveBlending 
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.copy(position);
+            mesh.userData.isShockwave = true;
+            mesh.userData.maxScale = 500; 
+            mesh.userData.speed = 100;
+            scene.add(mesh);
+            return mesh;
+        }
+
+
+        function triggerRedFlash(intensity = 1.0) {
+            const flashDiv = document.createElement('div');
+            flashDiv.id = 'impactFlash';
+            flashDiv.style.cssText = `
+                position: fixed;
+                top: 0; left: 0; width: 100%; height: 100%;
+                background-color: rgba(255, 0, 0, ${intensity});
+                z-index: 9999;
+                opacity: 1;
+                transition: opacity 0.3s ease-out; 
+                pointer-events: none;
+            `;
+            document.body.appendChild(flashDiv);
+
+            setTimeout(() => {
+                flashDiv.style.opacity = 0;
+            }, 50); 
+            
+            setTimeout(() => {
+                if (document.getElementById('impactFlash')) {
+                     document.body.removeChild(flashDiv);
+                }
+            }, 400);
+        }
+
+        function createExplosionParticles(position, count, size, speed, colorHex, fadeRate = 0.003) {
+             const geometry = new THREE.BufferGeometry();
+             const positions = new Float32Array(count * 3);
+             const velocities = new Float32Array(count * 3);
+             
+             for (let i = 0; i < count; i++) {
+                const i3 = i * 3;
+                positions[i3] = position.x;
+                positions[i3 + 1] = position.y;
+                positions[i3 + 2] = position.z;
+                
+                const s = 5 + Math.random() * speed; 
+                const theta = Math.random() * Math.PI * 2; 
+                const phi = Math.acos(Math.random() * 2 - 1); 
+                
+                velocities[i3] = Math.sin(phi) * Math.cos(theta) * s;
+                velocities[i3 + 1] = Math.sin(phi) * Math.sin(theta) * s;
+                velocities[i3 + 2] = Math.cos(phi) * s;
+             }
+
+             geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+             geometry.setAttribute('velocity', new THREE.BufferAttribute(velocities, 3)); 
+             
+             const material = new THREE.PointsMaterial({
+                color: colorHex, 
+                size: size / 10, 
+                blending: THREE.AdditiveBlending,
+                transparent: true,
+                opacity: 1
+             });
+
+             const particles = new THREE.Points(geometry, material);
+             particles.userData.fadeRate = fadeRate; 
+             particles.userData.isParticleSystem = true;
+             return particles;
+        }
+
+
+        function triggerImpactExplosion() {
+            const isSunImpact = targetMesh.userData.isSun;
+
+            if (asteroidMesh && asteroidMesh.parent) scene.remove(asteroidMesh);
+            asteroidMesh = null;
+            impactLight = new THREE.PointLight(isSunImpact ? 0xffcc00 : 0xffffff, isSunImpact ? 500 : 100, 100, 2); 
+            impactLight.position.copy(targetInitialPosition);
+            scene.add(impactLight);
+            cameraShakeIntensity = isSunImpact ? 8.0 : 4.0; 
+            cameraJitterIntensity = isSunImpact ? 4.0 : 2.0; 
+            
+            if (isSunImpact) {
+                // ԱՐԵՎԻ ՈՉՆՉԱՑՈՒՄ 
+                const particleCount = 500000; 
+                const speedMultiplier = 30; 
+                explosionParticles = createExplosionParticles(targetInitialPosition, particleCount, 15, speedMultiplier, 0xffaaaa, 0.003); 
+                scene.add(explosionParticles);
+                
+                // Ալիքի ստեղծում
+                shockwaveMesh = createShockwave(targetInitialPosition, 0xffcc00);
+
+                 simulationState = 'SUN_IMPACT_SEQUENCE';
+                 showMessage("ԳԱԼԱԿՏԻԿԱԿԱՆ ՈՉՆՉԱՑՈՒՄԸ ՍԿՍՎԵԼ Է...", 15000);
+                 targetMesh.userData.damageTimer = 100; 
+                 targetMesh.material.color.setHex(0xff0000);
+                 
+                 planetsToDestroy = planets.slice().sort((a, b) => a.data.distance - b.data.distance);
+                 planetExplosionIndex = 0;
+                 nextExplosionTime = Date.now() + 3000; // 3 վայրկյան դադար
+
+            } else {
+                // ՄՈԼՈՐԱԿԻ ՈՉՆՉԱՑՈՒՄ
+                destroyPlanetCinematically(targetMesh);
+            }
+        }
+        function triggerPlanetDestruction(planetEntry) {
+            const planetMesh = planetEntry.mesh;
+            if (!planetMesh || !planetMesh.parent) return
+            const pPos = new THREE.Vector3();
+            planetMesh.getWorldPosition(pPos);
+            triggerRedFlash(0.9); 
+            const localParticleCount = 250000;
+            const color = planetMesh.userData.originalColorHex || 0xdddddd;
+            const radius = planetMesh.geometry.parameters.radius || 3;
+            const localParticles = createExplosionParticles(pPos, localParticleCount, radius * 5, 30, color, 0.05); // Ավելի մեծ չափ ու արագություն
+            scene.add(localParticles);
+            const localLight = new THREE.PointLight(color, 500, 100, 1); // Ավելի վառ լույս
+            localLight.position.copy(pPos);
+            scene.add(localLight);
+            planetMesh.parent.remove(planetMesh);            
+            planets = planets.filter(p => p !== planetEntry);
+            setTimeout(() => {
+                if (localParticles && localParticles.parent) scene.remove(localParticles);
+                if (localLight && localLight.parent) scene.remove(localLight);
+            }, 3000);
+        }
+
+        function startFinalSequence() {
+            if (simulationState === 'FINAL_SEQUENCE') return;
+            
+            simulationState = 'FINAL_SEQUENCE';
+            isPaused = true;
+            controls.enabled = false;
+            hideMessage();
+            finalOverlay.classList.add('visible');
+            finalOverlay.style.opacity = 1;
+            setTimeout(() => {
+                const buttonsDiv = document.getElementById('finalButtons');
+                if(buttonsDiv) {
+                    buttonsDiv.style.opacity = 1;
+                }
+            }, 5500);
+        }
+
+        function cinematicUpdate(progress) {
+             const targetPos = targetInitialPosition;
+             const radius = targetMesh.geometry.parameters.radius || 3;
+             const style = asteroidMesh.userData.cinematicStyle;
+             let cameraPos = new THREE.Vector3();
+             let lookAtPos = new THREE.Vector3(); 
+             const t = progress * progress * progress; 
+             const startPos = asteroidMesh.userData.startPos;
+             asteroidMesh.position.lerpVectors(startPos, targetPos, t); 
+             if (progress < 0.9) {
+                 switch(style) {
+                     case 'ORBIT_ZOOM':
+                         let angle = progress * Math.PI * 4; 
+                         let orbitRadius = 100 + 400 * (1 - progress / 0.7); 
+                         let xOffset = Math.cos(angle) * orbitRadius;
+                         let zOffset = Math.sin(angle) * orbitRadius;
+                         cameraPos.copy(targetPos).add(new THREE.Vector3(xOffset, 50 * (1 - progress), zOffset));
+                         lookAtPos.lerpVectors(targetPos, asteroidMesh.position, progress / 0.7);
+                         break;
+
+                     case 'SIDE_PURSUE':
+                         const pathVector = new THREE.Vector3().subVectors(targetPos, startPos).normalize();
+                         const sideOffset = new THREE.Vector3(-pathVector.z, pathVector.y, pathVector.x).normalize().multiplyScalar(70); 
+                         cameraPos.copy(asteroidMesh.position).add(sideOffset.multiplyScalar(1 - progress / 0.8)).add(new THREE.Vector3(0, 10, 0));
+                         lookAtPos.lerpVectors(asteroidMesh.position, targetPos, 0.5);
+                         break;
+
+                     case 'REAR_DIVE':
+                         const startCamOffset = new THREE.Vector3().subVectors(startPos, targetPos).normalize().multiplyScalar(100);
+                         cameraPos.copy(targetPos).add(startCamOffset); 
+                         lookAtPos.copy(asteroidMesh.position);
+                         break;
+                     
+                     default:
+                         cameraPos = new THREE.Vector3(targetPos.x + 100, targetPos.y + 100, targetPos.z + 200);
+                         lookAtPos = targetPos;
+                         break;
+                 }
+             } else {
+                 const finalProgress = (progress - 0.9) / 0.1;
+                 const safeDistance = radius * (targetMesh.userData.isSun ? 3 : 10); 
+                 const currentOffset = new THREE.Vector3().subVectors(camera.position, targetPos).normalize();
+                 const targetFinalPosition = new THREE.Vector3().addVectors(targetPos, currentOffset.multiplyScalar(safeDistance));
+                 cameraPos.lerpVectors(camera.position, targetFinalPosition, finalProgress * 0.5); // *0.5-ը դարձնում է ավելի սահուն
+                 lookAtPos.copy(targetPos);
+             }
+             
+             camera.position.lerp(cameraPos, 0.05); 
+             camera.lookAt(lookAtPos);
+             if (progress > IMPACT_POINT) {
+                 cameraJitterIntensity = 1.0;
+                 if (targetMesh && targetMesh.userData.originalColor) {
+                      const redColor = new THREE.Color(0xff0000);
+                      const damageProgress = (progress - IMPACT_POINT) / (1 - IMPACT_POINT);
+                      targetMesh.material.color.lerpColors(targetMesh.userData.originalColor, redColor, damageProgress);
+                 }
+             } else {
+                 cameraJitterIntensity = 0; 
+             }
+
+             if (progress >= 1.0 && simulationState === 'APPROACHING') { 
+                simulationState = 'IMPACTING';
+                triggerImpactExplosion();
+             }
+        }
+        
+        function updateDamagedMesh(mesh) {
+            if (mesh.userData.damageTimer > 0) {
+                mesh.userData.damageTimer--;                
+                const time = Date.now() * 0.01;
+                const color = new THREE.Color();
+                const flashIntensity = 0.5 + 0.5 * Math.sin(time * 0.5); 
+                color.lerpColors(mesh.userData.originalColor, mesh.userData.damageColorTarget, flashIntensity); 
+                mesh.material.color.copy(color);
+                const wobble = 1 + 0.02 * Math.sin(time * 0.1);
+                mesh.scale.set(wobble, wobble, wobble);
+                if (mesh.userData.damageTimer <= 0) {
+                    finalPlanetExplosion(mesh);
+                }
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const now = Date.now();
+            if (shockwaveMesh) {
+                const delta = 0.016; 
+                shockwaveMesh.scale.multiplyScalar(1 + delta * shockwaveMesh.userData.speed / shockwaveMesh.scale.x);
+                shockwaveMesh.material.opacity = 1 - (shockwaveMesh.scale.x / shockwaveMesh.userData.maxScale);
+                if (shockwaveMesh.material.opacity <= 0.01) {
+                    scene.remove(shockwaveMesh);
+                    shockwaveMesh.geometry.dispose();
+                    shockwaveMesh.material.dispose();
+                    shockwaveMesh = null;
+                }
+            }
+
+            if (explosionParticles) {
+                const geometry = explosionParticles.geometry;
+                const velocities = geometry.attributes.velocity.array;
+                const positions = geometry.attributes.position.array;
+                const opacity = explosionParticles.material.opacity;
+                const fadeRate = explosionParticles.userData.fadeRate;
+                
+                explosionParticles.material.opacity = Math.max(0, opacity - fadeRate); 
+                explosionParticles.scale.multiplyScalar(1.002); 
+                
+                for (let i = 0; i < positions.length; i += 3) {
+                    positions[i] += velocities[i] * 0.1;
+                    positions[i + 1] += velocities[i + 1] * 0.1;
+                    positions[i + 2] += velocities[i + 2] * 0.1;
+                    velocities[i + 1] -= 0.005;
+                }
+                geometry.attributes.position.needsUpdate = true;
+                
+                if (impactLight) impactLight.intensity = Math.max(0, impactLight.intensity - (targetMesh && targetMesh.userData.isSun ? 0.05 : 0.2)); 
+
+                if (opacity <= 0.01 && (impactLight ? impactLight.intensity : 0) < 0.1 && simulationState !== 'SUN_IMPACT_SEQUENCE' && simulationState !== 'AFTERMATH') {
+                    scene.remove(explosionParticles);
+                    explosionParticles.geometry.dispose();
+                    explosionParticles.material.dispose();
+                    explosionParticles = null;
+                    if (impactLight && impactLight.parent) scene.remove(impactLight);
+                    impactLight = null;
+                }
+            }
+            
+            if (cameraShakeIntensity > 0.01 || cameraJitterIntensity > 0.1) {
+                 const currentShake = cameraShakeIntensity + cameraJitterIntensity * (Math.random() - 0.5);
+                 camera.position.x += (Math.random() - 0.5) * currentShake;
+                 camera.position.y += (Math.random() - 0.5) * currentShake;
+                 camera.position.z += (Math.random() - 0.5) * currentShake;
+                 cameraShakeIntensity *= 0.8; 
+            }
+            
+            if (simulationState === 'IDLE') {
+                controls.update(); 
+                if (selectedOutline) {
+                    const scaleFactor = 1.1 + 0.05 * Math.sin(now * 0.005);
+                    selectedOutline.scale.set(scaleFactor, scaleFactor, scaleFactor);
+                }
+                
+                if (!isPaused) {
+                    planets.forEach(p => {
+                        if (p.mesh && p.mesh.parent) { 
+                            p.mesh.rotation.y += p.data.rotationSpeed;
+                            if (p.data.orbitSpeed > 0) {
+                                p.angle += p.data.orbitSpeed;
+                                p.orbit.rotation.y = p.angle; 
+                            }
+                        }
+                    });
+                }
+                
+            } else if (simulationState === 'APPROACHING') { 
+                const elapsed = now - cinematicStartTime;
+                let progress = elapsed / cinematicDuration;
+                progress = Math.min(progress, 1.0); 
+
+                if (asteroidMesh && asteroidMesh.userData.rotationSpeed) {
+                    asteroidMesh.rotation.x += asteroidMesh.userData.rotationSpeed.x;
+                    asteroidMesh.rotation.y += asteroidMesh.userData.rotationSpeed.y;
+                    asteroidMesh.rotation.z += asteroidMesh.userData.rotationSpeed.z;
+                }
+
+                if (targetMesh && asteroidMesh) {
+                    cinematicUpdate(progress);
+                }
+
+            } else if (simulationState === 'AFTERMATH') { 
+                 if (targetMesh && targetMesh.userData.damageTimer > 0) {
+                     updateDamagedMesh(targetMesh);
+                 } else if (targetMesh === null && explosionParticles === null) {
+                     resetSimulation(false);
+                 }
+
+            } else if (simulationState === 'SUN_IMPACT_SEQUENCE') {
+                    
+                    camera.lookAt(targetInitialPosition);
+                    if (targetMesh && targetMesh.userData.damageTimer > 0) {
+                        targetMesh.userData.damageTimer--;
+                        targetMesh.material.color.setHex(0xff0000); 
+                    } else if (targetMesh) {
+                        targetMesh.material.color.lerp(targetMesh.material.color, new THREE.Color(0x330000), 0.005);
+                    }
+                    
+                    if (planetExplosionIndex < planetsToDestroy.length) {
+                        const planetEntry = planetsToDestroy[planetExplosionIndex];
+                        
+                        if (Date.now() >= nextExplosionTime) {
+                             triggerPlanetDestruction(planetEntry); 
+                             planetExplosionIndex++;
+                             
+                             if (planetExplosionIndex < planetsToDestroy.length) {
+                                 nextExplosionTime = Date.now() + explosionInterval;
+                                 const nextPlanet = planetsToDestroy[planetExplosionIndex];
+                                 showMessage(`ՀԱՋՈՐԴ ԹԻՐԱԽԸ: <span class="text-red-500">${nextPlanet.data.name}</span>`, explosionInterval);
+                             }
+                        } else if (Date.now() < nextExplosionTime && nextExplosionTime - Date.now() < 3000 && !planetEntry.userData.messageShown) {
+                            if(planetExplosionIndex < planetsToDestroy.length) {
+                                 showMessage(`ՀԱՋՈՐԴ ԹԻՐԱԽԸ: <span class="text-red-500">${planetEntry.data.name}</span>`, explosionInterval);
+                                 planetEntry.userData.messageShown = true; 
+                            }
+                        }
+                    }
+                    
+                    if (planetExplosionIndex >= planetsToDestroy.length && explosionParticles && explosionParticles.material.opacity < 0.05) {
+                        simulationState = 'CLEANUP';                  
+                        if(targetMesh && targetMesh.parent) scene.remove(targetMesh);
+                        targetMesh = null;
+                        setTimeout(() => {
+                           startFinalSequence(); 
+                        }, 3000); 
+                    }
+            } else if (simulationState === 'CLEANUP' || simulationState === 'FINAL_SEQUENCE') {
+                controls.enabled = false;
+            }
+            
+            renderer.render(scene, camera);
+        }
+
+        // ՖՈՒՆԿՑԻԱՆԵՐ
+        function resetSimulation(isFullReset = false) {
+            if (isFullReset) {
+                 setTimeout(() => resetFullSimulation(false), 1000); // isFromButton = false
+                 return;
+            }
+            
+            simulationState = 'IDLE';
+            controls.enabled = true;
+            document.getElementById('solarSystemCanvas').style.cursor = 'grab';
+            
+            // Մաքրում ենք բոլոր լույսերը և մասնիկները, որոնք կարող էին մնալ
+            if (impactLight && impactLight.parent) scene.remove(impactLight);
+            impactLight = null;
+            if (explosionParticles && explosionParticles.parent) scene.remove(explosionParticles);
+            explosionParticles = null;
+            
+            isPaused = false;
+            pausePlayBtn.textContent = 'Դադարեցնել Շարժումը';
+            pausePlayBtn.classList.remove('bg-green-600', 'border-green-600');
+            pausePlayBtn.classList.add('bg-yellow-600', 'border-yellow-600');
+        }
+        
+        function displayInfo(data) {
+            document.getElementById('planetName').textContent = data.name;
+            document.getElementById('planetFact').textContent = data.fact;
+            
+            let distanceLabel = "Հեռավորություն (Արեգակից):";
+            let orbitLabel = "Օրբիտալ Արագություն:";
+
+            if (data.isSun) {
+                 distanceLabel = "Զանգված:";
+                 orbitLabel = "Ջերմաստիճան:";
+            } 
+            
+            document.getElementById('pRadius').innerHTML = `<strong>Շառավիղ:</strong> ${data.details.radius}`;
+            document.getElementById('pDistance').innerHTML = `<strong>${distanceLabel}</strong> ${data.details.distance}`;
+            document.getElementById('pOrbitSpeed').innerHTML = `<strong>${orbitLabel}</strong> ${data.details.orbit}`;
+            
+            createPlanetPreview(data);
+            infoPanel.classList.add('active');
+            impactBtn.classList.remove('hidden'); 
+        }
+
+        function hideInfo() {
+            infoPanel.classList.remove('active');
+            impactBtn.classList.add('hidden');
+            if (previewAnimationId) {
+                cancelAnimationFrame(previewAnimationId);
+            }
+            clearSelectionOutline();
+        }
+
+        // Անիմացիա
+        window.onload = function () {
+            try {
+                init();
+                animate();
+            } catch (e) {
+                console.error("Initialization failed:", e);
+                loadingScreen.innerHTML = `<div class="p-8 bg-red-800 text-white rounded-lg shadow-xl"><h3 class="text-2xl font-bold mb-2">Սխալ 3D-ի Բեռնման Ժամանակ!</h3><p>3D տեսարանը չի բեռնվել։</p><p class="mt-2 text-sm">Մանրամասն սխալ: ${e.message}</p></div>`;
+                loadingScreen.style.display = 'flex';
+            }
+        };
+
+        function togglePause() {
+            if (simulationState !== 'IDLE') return; 
+             isPaused = !isPaused;
+            if (isPaused) {
+                pausePlayBtn.textContent = 'Շարունակել Շարժումը';
+                pausePlayBtn.classList.remove('bg-yellow-600', 'border-yellow-600');
+                pausePlayBtn.classList.add('bg-green-600', 'border-green-600');
+            } else {
+                pausePlayBtn.textContent = 'Դադարեցնել Շարժումը';
+                pausePlayBtn.classList.remove('bg-green-600', 'border-green-600');
+                pausePlayBtn.classList.add('bg-yellow-600', 'border-yellow-600');
+            }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            
+            const container = document.getElementById(previewContainerId);
+            if (previewRenderer && container.clientWidth > 0) {
+                 const width = container.clientWidth;
+                 const height = container.clientHeight;
+                 previewCamera.aspect = width / height;
+                 previewCamera.updateProjectionMatrix();
+                 previewRenderer.setSize(width, height);
+            }
+        }
+
+        let previewRenderer, previewScene, previewCamera, previewMesh, previewAnimationId;
+        const previewContainerId = 'planetPreviewContainer';
+        
+        function createPlanetPreview(data) {
+            const container = document.getElementById(previewContainerId);
+            if (!container) return;
+
+            if (previewAnimationId) {
+                cancelAnimationFrame(previewAnimationId);
+            }
+            container.innerHTML = ''; 
+
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            previewScene = new THREE.Scene();
+            previewScene.background = new THREE.Color(0x444444); 
+            
+            previewCamera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
+            previewCamera.position.z = 8;
+            
+            previewRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+            previewRenderer.setSize(width, height);
+            previewRenderer.domElement.style.borderRadius = '0.5rem'; 
+            container.appendChild(previewRenderer.domElement);
+
+            const planetRadius = data.isSun ? 3.5 : (data.isDwarf || data.isMoon ? 1.5 : 3.0); 
+            const geometry = new THREE.SphereGeometry(planetRadius, 32, 32);
+            let material = new THREE.MeshPhongMaterial({ color: data.color || 0xdddddd, specular: 0x888888, shininess: 30 });
+            
+            if (data.isSun) { 
+                 material = new THREE.MeshBasicMaterial({ color: data.color });
+                 const sunLight = new THREE.PointLight(0xffffff, 20); 
+                 sunLight.position.set(0, 0, 0);
+                 previewScene.add(sunLight);
+            }
+
+            if (!data.isSun) {
+                const light = new THREE.PointLight(0xffffff, 2);
+                light.position.set(5, 5, 5);
+                previewScene.add(light);
+                previewScene.add(new THREE.AmbientLight(0x555555));
+            }
+
+            previewMesh = new THREE.Mesh(geometry, material);
+            previewScene.add(previewMesh);
+            
+            if (data.isRinged) {
+                 const ringGeometry = new THREE.RingGeometry(planetRadius * 1.3, planetRadius * 2.5, 64);
+                 const ringMaterial = new THREE.MeshPhongMaterial({ color: data.ringColor, side: THREE.DoubleSide, shininess: 50, transparent: true, opacity: 0.8 });
+                 const ringMesh = new THREE.Mesh(ringGeometry, ringMaterial);
+                 ringMesh.rotation.x = Math.PI / 2;
+                 previewMesh.add(ringMesh);
+            }
+            
+            animatePreview();
+        }
+        
+        function animatePreview() {
+            previewAnimationId = requestAnimationFrame(animatePreview);
+            
+            if (previewMesh) {
+                previewMesh.rotation.y += 0.005; 
+            }
+
+            if (previewRenderer && previewScene && previewCamera) {
+                previewRenderer.render(previewScene, previewCamera);
+            }
+        }
+
+    </script>
+</body>
+</html>

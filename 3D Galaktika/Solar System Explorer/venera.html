@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="hy">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ուղևորություն դեպի Վեներա - Խորհրդավոր Հանդիպում</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', 'Segoe UI', sans-serif;
+            background: #000;
+            color: #fff;
+            overflow: hidden;
+            cursor: none;
+        }
+
+        #gameContainer {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            background: radial-gradient(ellipse at center, #1a0d2e 0%, #000 70%);
+            perspective: 1500px;
+        }
+
+        /* Custom Cursor */
+        .custom-cursor {
+            position: fixed;
+            width: 25px;
+            height: 25px;
+            background: radial-gradient(circle, #ff6b9d 0%, #ffc649 50%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 10000;
+            mix-blend-mode: screen;
+            animation: cursor-pulse 2s infinite;
+            box-shadow: 0 0 20px rgba(255, 107, 157, 0.8);
+        }
+
+        @keyframes cursor-pulse {
+            0%, 100% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.8); opacity: 1; }
+        }
+
+        /* 3D Cosmic Background */
+        .cosmic-bg {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.4) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 107, 157, 0.4) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(155, 89, 182, 0.3) 0%, transparent 50%);
+            animation: cosmic-drift 20s ease-in-out infinite;
+            transform-style: preserve-3d;
+        }
+
+        @keyframes cosmic-drift {
+            0%, 100% { transform: rotate(0deg) scale(1) translateZ(0px); }
+            50% { transform: rotate(180deg) scale(1.2) translateZ(100px); }
+        }
+
+        /* Enhanced 3D Stars */
+        .stars {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            transform-style: preserve-3d;
+        }
+
+        .star {
+            position: absolute;
+            background: radial-gradient(circle, #fff 0%, transparent 70%);
+            border-radius: 50%;
+            animation: star-twinkle 3s ease-in-out infinite;
+        }
+
+        @keyframes star-twinkle {
+            0%, 100% { 
+                opacity: 0.3; 
+                transform: scale(1) translateZ(var(--z)) rotateZ(0deg); 
+                box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+            }
+            50% { 
+                opacity: 1; 
+                transform: scale(1.5) translateZ(var(--z)) rotateZ(180deg); 
+                box-shadow: 0 0 20px rgba(255, 255, 255, 1);
+            }
+        }
+
+        /* 3D Nebula Effect */
+        .nebula {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(ellipse 800px 400px at 30% 20%, rgba(255, 107, 157, 0.15) 0%, transparent 40%),
+                radial-gradient(ellipse 600px 300px at 70% 80%, rgba(120, 119, 198, 0.2) 0%, transparent 40%);
+            animation: nebula-flow 30s linear infinite;
+            transform-style: preserve-3d;
+            filter: blur(40px);
+        }
+
+        @keyframes nebula-flow {
+            0% { transform: rotate(0deg) scale(1) translateZ(50px); filter: hue-rotate(0deg) blur(40px); }
+            100% { transform: rotate(360deg) scale(1.3) translateZ(150px); filter: hue-rotate(360deg) blur(40px); }
+        }
+
+        /* 3D Solar System */
+        #solarSystem {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            transform-origin: center;
+            transition: all 6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            transform-style: preserve-3d;
+        }
+
+        .planet {
+            position: absolute;
+            border-radius: 50%;
+            transition: all 2s ease-in-out;
+            transform-style: preserve-3d;
+            animation: planet-float 4s ease-in-out infinite;
+        }
+
+        @keyframes planet-float {
+            0%, 100% { transform: translateZ(0px) rotateY(0deg); }
+            50% { transform: translateZ(30px) rotateY(180deg); }
+        }
+
+        .sun {
+            width: 140px;
+            height: 140px;
+            background: radial-gradient(circle at 30% 30%, #ffeb3b 0%, #ff6f00 50%, #e65100 100%);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 
+                0 0 80px #ff6f00,
+                0 0 160px rgba(255, 111, 0, 0.6),
+                inset -30px -30px 60px rgba(0, 0, 0, 0.4);
+            animation: solar-flare 4s ease-in-out infinite;
+        }
+
+        @keyframes solar-flare {
+            0%, 100% { 
+                box-shadow: 0 0 80px #ff6f00, 0 0 160px rgba(255, 111, 0, 0.6);
+                transform: translate(-50%, -50%) scale(1) rotateZ(0deg);
+            }
+            50% { 
+                box-shadow: 0 0 120px #ff6f00, 0 0 240px rgba(255, 111, 0, 0.9);
+                transform: translate(-50%, -50%) scale(1.1) rotateZ(180deg);
+            }
+        }
+
+        .mercury { 
+            width: 22px; 
+            height: 22px; 
+            background: radial-gradient(circle at 30% 30%, #d4af37, #8b7355);
+            top: 42%; 
+            left: 56%; 
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.8);
+        }
+
+        .venus { 
+            width: 32px; 
+            height: 32px; 
+            background: radial-gradient(circle at 30% 30%, #ffc649 0%, #ff8f00 50%, #e65100 100%);
+            top: 35%; 
+            left: 62%; 
+            box-shadow: 
+                0 0 25px rgba(255, 198, 73, 0.9),
+                0 0 50px rgba(255, 198, 73, 0.5);
+            animation: venus-glow 3s ease-in-out infinite alternate;
+        }
+
+        @keyframes venus-glow {
+            0% { 
+                box-shadow: 0 0 25px rgba(255, 198, 73, 0.9), 0 0 50px rgba(255, 198, 73, 0.5);
+                transform: translateZ(0px) scale(1);
+            }
+            100% { 
+                box-shadow: 0 0 50px rgba(255, 198, 73, 1), 0 0 100px rgba(255, 198, 73, 0.7);
+                transform: translateZ(50px) scale(1.2);
+            }
+        }
+
+        .earth { 
+            width: 28px; 
+            height: 28px; 
+            background: radial-gradient(circle at 30% 30%, #6b93d6, #4682b4, #2f4f4f);
+            top: 28%; 
+            left: 68%; 
+            box-shadow: 0 0 20px rgba(107, 147, 214, 0.8);
+        }
+
+        .mars { 
+            width: 24px; 
+            height: 24px; 
+            background: radial-gradient(circle at 30% 30%, #cd5c5c, #a0522d);
+            top: 22%; 
+            left: 74%; 
+            box-shadow: 0 0 18px rgba(205, 92, 92, 0.7);
+        }
+
+        /* 3D Venus Close-up */
+        #venusCloseup {
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            background: 
+                radial-gradient(circle at 30% 20%, #fff4e6 0%, #ffc649 20%, #ff8f00 40%, #e65100 60%, #bf360c 80%, #6d1b00 100%);
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0) rotateY(0deg);
+            opacity: 0;
+            transition: all 4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            box-shadow: 
+                0 0 150px rgba(255, 198, 73, 0.7),
+                0 0 300px rgba(255, 143, 0, 0.5),
+                inset -60px -60px 120px rgba(0, 0, 0, 0.4);
+            filter: drop-shadow(0 0 80px rgba(255, 198, 73, 0.9));
+            transform-style: preserve-3d;
+        }
+
+        #venusCloseup.active {
+            transform: translate(-50%, -50%) scale(1) rotateY(360deg);
+            opacity: 1;
+            animation: venus-atmosphere 10s ease-in-out infinite;
+        }
+
+        @keyframes venus-atmosphere {
+            0%, 100% { 
+                filter: drop-shadow(0 0 80px rgba(255, 198, 73, 0.9)) brightness(1); 
+                transform: translate(-50%, -50%) scale(1) rotateY(360deg);
+            }
+            50% { 
+                filter: drop-shadow(0 0 150px rgba(255, 198, 73, 1)) brightness(1.3); 
+                transform: translate(-50%, -50%) scale(1.05) rotateY(540deg);
+            }
+        }
+
+        /* Venus 3D Clouds */
+        .venus-clouds {
+            position: absolute;
+            width: 120%;
+            height: 120%;
+            top: -10%;
+            left: -10%;
+            background: 
+                radial-gradient(ellipse 250px 120px at 20% 30%, rgba(255, 255, 255, 0.15) 0%, transparent 70%),
+                radial-gradient(ellipse 180px 90px at 70% 60%, rgba(255, 198, 73, 0.25) 0%, transparent 70%),
+                radial-gradient(ellipse 220px 100px at 50% 20%, rgba(255, 143, 0, 0.2) 0%, transparent 70%);
+            border-radius: 50%;
+            animation: cloud-drift 25s linear infinite;
+            transform-style: preserve-3d;
+        }
+
+        @keyframes cloud-drift {
+            0% { transform: rotate(0deg) translateZ(30px); }
+            100% { transform: rotate(360deg) translateZ(30px); }
+        }
+
+        /* Enhanced Fact Display with 3D Effect */
+        .fact-display {
+            position: absolute;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%) translateZ(0px);
+            background: linear-gradient(135deg, 
+                rgba(255, 107, 157, 0.25) 0%, 
+                rgba(120, 119, 198, 0.35) 50%, 
+                rgba(155, 89, 182, 0.25) 100%);
+            backdrop-filter: blur(15px);
+            padding: 40px 60px;
+            border-radius: 25px;
+            border: 3px solid rgba(255, 107, 157, 0.7);
+            opacity: 0;
+            transition: all 2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            max-width: 900px;
+            text-align: center;
+            box-shadow: 
+                0 15px 60px rgba(255, 107, 157, 0.4),
+                inset 0 2px 0 rgba(255, 255, 255, 0.15);
+            transform-style: preserve-3d;
+        }
+
+        .fact-display.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(-20px) translateZ(100px);
+        }
+
+        .fact-display h3 {
+            color: #ff6b9d;
+            font-size: 2.4em;
+            margin-bottom: 25px;
+            text-shadow: 
+                0 0 15px rgba(255, 107, 157, 0.9),
+                0 0 30px rgba(255, 107, 157, 0.5);
+            font-weight: bold;
+            animation: title-pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes title-pulse {
+            0%, 100% { 
+                text-shadow: 0 0 15px rgba(255, 107, 157, 0.9), 0 0 30px rgba(255, 107, 157, 0.5);
+                transform: scale(1);
+            }
+            50% { 
+                text-shadow: 0 0 25px rgba(255, 107, 157, 1), 0 0 50px rgba(255, 107, 157, 0.7);
+                transform: scale(1.05);
+            }
+        }
+
+        .fact-display p {
+            font-size: 1.6em;
+            line-height: 1.8;
+            color: #ffffff;
+            text-shadow: 
+                0 2px 4px rgba(0, 0, 0, 0.7),
+                0 0 10px rgba(255, 255, 255, 0.3);
+            font-weight: 500;
+        }
+
+        .fact-display small {
+            font-size: 0.9em;
+            color: #ffc649;
+            text-shadow: 0 0 10px rgba(255, 198, 73, 0.8);
+        }
+
+        /* 3D Alien Ship */
+        .alien-ship {
+            position: absolute;
+            width: 200px;
+            height: 80px;
+            background: linear-gradient(ellipse, 
+                rgba(255, 107, 157, 0.9) 0%, 
+                rgba(120, 119, 198, 1) 50%, 
+                rgba(155, 89, 182, 0.9) 100%);
+            border-radius: 50%;
+            top: -150px;
+            left: 50%;
+            transform: translateX(-50%) rotateX(0deg);
+            box-shadow: 
+                0 0 40px rgba(255, 107, 157, 0.9),
+                0 0 80px rgba(120, 119, 198, 0.7),
+                inset 0 15px 30px rgba(255, 255, 255, 0.3);
+            animation: ship-enter 7s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            opacity: 0;
+            transform-style: preserve-3d;
+        }
+
+        .alien-ship.active {
+            opacity: 1;
+        }
+
+        @keyframes ship-enter {
+            0% { 
+                top: -300px; 
+                opacity: 0; 
+                transform: translateX(-50%) scale(0.3) rotateX(-45deg) rotateZ(-20deg);
+            }
+            30% {
+                opacity: 1;
+            }
+            100% { 
+                top: 18%; 
+                opacity: 1; 
+                transform: translateX(-50%) scale(1) rotateX(0deg) rotateZ(0deg);
+            }
+        }
+
+        /* Enhanced Ship Lights */
+        .ship-lights {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+
+        .light {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: #fff;
+            border-radius: 50%;
+            animation: light-blink 1s ease-in-out infinite alternate;
+            transform-style: preserve-3d;
+        }
+
+        .light:nth-child(1) { left: 15%; top: 40%; animation-delay: 0s; }
+        .light:nth-child(2) { left: 35%; top: 25%; animation-delay: 0.25s; }
+        .light:nth-child(3) { left: 65%; top: 25%; animation-delay: 0.5s; }
+        .light:nth-child(4) { left: 85%; top: 40%; animation-delay: 0.75s; }
+
+        @keyframes light-blink {
+            0% { 
+                opacity: 0.2; 
+                box-shadow: 0 0 8px rgba(255, 107, 157, 0.6);
+                transform: scale(1) translateZ(0px);
+            }
+            100% { 
+                opacity: 1; 
+                box-shadow: 0 0 30px rgba(255, 107, 157, 1), 0 0 50px rgba(120, 119, 198, 0.8);
+                transform: scale(1.5) translateZ(20px);
+            }
+        }
+
+        /* Telepathic Message with 3D */
+        .telepathic-message {
+            position: absolute;
+            top: 28%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, 
+                rgba(255, 107, 157, 0.2) 0%, 
+                rgba(120, 119, 198, 0.3) 100%);
+            backdrop-filter: blur(20px);
+            padding: 35px 50px;
+            border-radius: 20px;
+            border: 2px solid rgba(255, 107, 157, 0.5);
+            font-size: 1.8em;
+            color: #ffffff;
+            text-align: center;
+            opacity: 0;
+            animation: telepathic-fade 5s ease-in-out;
+            box-shadow: 0 0 40px rgba(255, 107, 157, 0.4);
+            max-width: 700px;
+            text-shadow: 0 0 15px rgba(255, 107, 157, 0.8);
+            transform-style: preserve-3d;
+        }
+
+        @keyframes telepathic-fade {
+            0%, 100% { 
+                opacity: 0; 
+                transform: translateX(-50%) scale(0.7) translateZ(0px); 
+            }
+            20%, 80% { 
+                opacity: 1; 
+                transform: translateX(-50%) scale(1) translateZ(80px); 
+            }
+        }
+
+        /* Energy Beam 3D */
+        .energy-beam {
+            position: absolute;
+            width: 6px;
+            background: linear-gradient(to bottom, 
+                rgba(255, 107, 157, 1) 0%,
+                rgba(120, 119, 198, 0.9) 50%,
+                rgba(155, 89, 182, 0.7) 100%);
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            animation: beam-extend 4s ease-out;
+            box-shadow: 
+                0 0 15px rgba(255, 107, 157, 0.9),
+                0 0 30px rgba(120, 119, 198, 0.7);
+            filter: blur(2px);
+        }
+
+        .energy-beam.active {
+            opacity: 1;
+        }
+
+        @keyframes beam-extend {
+            0% { 
+                height: 0; 
+                top: 24%; 
+                opacity: 0;
+            }
+            50% {
+                opacity: 1;
+            }
+            100% { 
+                height: 500px; 
+                top: 24%; 
+                opacity: 0.9;
+            }
+        }
+
+        /* Emergency Screen Enhanced */
+        .emergency-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at center,
+                    rgba(255, 107, 157, 0.15) 0%,
+                    rgba(120, 119, 198, 0.25) 50%,
+                    rgba(0, 0, 0, 0.95) 100%);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            animation: mystical-emergency 1.5s ease-in-out infinite alternate;
+            backdrop-filter: blur(8px);
+        }
+
+        .emergency-panel {
+            background: linear-gradient(135deg,
+                rgba(255, 107, 157, 0.25) 0%,
+                rgba(120, 119, 198, 0.35) 50%,
+                rgba(155, 89, 182, 0.25) 100%);
+            backdrop-filter: blur(25px);
+            border: 4px solid rgba(255, 107, 157, 0.7);
+            border-radius: 30px;
+            padding: 60px;
+            text-align: center;
+            max-width: 800px;
+            box-shadow: 
+                0 0 80px rgba(255, 107, 157, 0.5),
+                inset 0 2px 0 rgba(255, 255, 255, 0.15);
+            transform-style: preserve-3d;
+        }
+
+        .emergency-title {
+            color: #ff6b9d;
+            font-size: 3.5em;
+            font-weight: bold;
+            margin-bottom: 35px;
+            text-shadow: 
+                0 0 25px rgba(255, 107, 157, 0.9),
+                0 0 50px rgba(255, 107, 157, 0.5);
+            animation: title-glow 2s ease-in-out infinite alternate;
+        }
+
+        .emergency-text {
+            font-size: 1.6em;
+            margin-bottom: 25px;
+            color: #ffffff;
+            line-height: 1.8;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7);
+        }
+
+        .emergency-buttons {
+            display: flex;
+            gap: 40px;
+            justify-content: center;
+            margin-top: 50px;
+            flex-wrap: wrap;
+        }
+
+        .emergency-btn {
+            padding: 22px 45px;
+            font-size: 1.4em;
+            border: 3px solid;
+            border-radius: 18px;
+            background: transparent;
+            color: white;
+            cursor: pointer;
+            transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            position: relative;
+            overflow: hidden;
+            min-width: 250px;
+            font-weight: bold;
+            transform-style: preserve-3d;
+        }
+
+        .emergency-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.6s;
+        }
+
+        .emergency-btn:hover::before {
+            left: 100%;
+        }
+
+        .emergency-btn:hover {
+            transform: translateY(-5px) translateZ(30px);
+        }
+
+        .home-btn {
+            border-color: #ff6b9d;
+            color: #ff6b9d;
+        }
+
+        .home-btn:hover {
+            background: rgba(255, 107, 157, 0.25);
+            box-shadow: 0 0 40px rgba(255, 107, 157, 0.7);
+        }
+
+        .surrender-btn {
+            border-color: #7877c6;
+            color: #7877c6;
+        }
+
+        .surrender-btn:hover {
+            background: rgba(120, 119, 198, 0.25);
+            box-shadow: 0 0 40px rgba(120, 119, 198, 0.7);
+        }
+
+        /* 3D Particle System */
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: rgba(255, 107, 157, 0.9);
+            border-radius: 50%;
+            animation: particle-float 8s linear infinite;
+            box-shadow: 0 0 10px rgba(255, 107, 157, 0.8);
+        }
+
+        @keyframes particle-float {
+            0% { 
+                transform: translateY(100vh) scale(0) translateZ(0px);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% { 
+                transform: translateY(-150px) scale(1.5) translateZ(200px);
+                opacity: 0;
+            }
+        }
+
+        /* Loading Progress */
+        .progress-bar {
+            width: 500px;
+            height: 30px;
+            background: linear-gradient(90deg, rgba(120, 119, 198, 0.3), rgba(255, 107, 157, 0.3));
+            border-radius: 20px;
+            margin: 0 auto;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(255, 107, 157, 0.3);
+        }
+
+        .progress-fill {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #7877c6, #ff6b9d);
+            border-radius: 20px;
+            animation: progress-fill 5s ease-in-out forwards;
+            box-shadow: 0 0 30px rgba(120, 119, 198, 0.9);
+        }
+
+        @keyframes progress-fill {
+            0% { width: 0%; }
+            100% { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="custom-cursor" id="cursor"></div>
+    
+    <div id="gameContainer">
+        <div class="cosmic-bg"></div>
+        <div class="nebula"></div>
+        <div class="stars" id="starsContainer"></div>
+        
+        <div class="particle-system" id="particleSystem"></div>
+        
+        <!-- Արեգակնային համակարգ -->
+        <div id="solarSystem">
+            <div class="planet sun"></div>
+            <div class="planet mercury"></div>
+            <div class="planet venus" id="venusPlanet"></div>
+            <div class="planet earth"></div>
+            <div class="planet mars"></div>
+        </div>
+
+        <!-- Վեներայի մոտիկ տեսարան -->
+        <div id="venusCloseup">
+            <div class="venus-clouds"></div>
+        </div>
+
+        <!-- Փաստերի ցուցադրում -->
+        <div class="fact-display" id="factDisplay">
+            <h3 id="factTitle">Վեներայի խորհուրդներ</h3>
+            <p id="factText"></p>
+            <p><small>Հայտնագործություն <span id="factCounter">1</span>-ը 10-ից</small></p>
+        </div>
+
+        <!-- Օտարերկրյա նավ -->
+        <div class="alien-ship" id="alienShip">
+            <div class="ship-lights">
+                <div class="light"></div>
+                <div class="light"></div>
+                <div class="light"></div>
+                <div class="light"></div>
+            </div>
+        </div>
+
+        <!-- Արտակարգ իրավիճակի էկրան -->
+        <div class="emergency-screen" id="emergencyScreen">
+            <div class="emergency-panel">
+                <div class="emergency-title">👽 ՕՏԱՐԵՐԿՐՅԱ ԿՈՆՏԱԿՏ 👽</div>
+                <div class="emergency-text" id="emergencyText">
+                    Զարգացած օտարերկրյա քաղաքակրթությունը տելեպաթիկ կապ է հաստատել։<br>
+                    Նրանք առաջարկում են կիսվել Վեներայի և տիեզերքի գաղտնիքներով...
+                </div>
+                <p style="margin-top: 25px; font-style: italic; color: #ff6b9d; font-size: 1.3em;">
+                    «Մենք հետևել ենք ձեր տեսակին։ Ձեր հետաքրքրասիրությունը հրապուրիչ է։»
+                </p>
+                <div class="emergency-buttons">
+                    <button class="emergency-btn home-btn" onclick="goHome()">Վերադառնալ Երկիր</button>
+                    <button class="emergency-btn surrender-btn" onclick="acceptAliens()">Ընդունել նրանց պարգևը</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentFact = 0;
+        let gamePhase = 'solarSystem';
+        
+        const venusFacts = [
+            "Վեներան Արեգակնային համակարգի ամենատաք մոլորակն է՝ մակերեսի ջերմաստիճանը հասնում է 475°C-ի՝ բավարար է կապարը հալեցնելու համար։",
+            "Վեներայի օրը (243 երկրային օր) ավելի երկար է, քան նրա տարին (225 երկրային օր), և այն պտտվում է հակառակ ուղղությամբ Երկրի համեմատ։",
+            "Վեներան ունի Արեգակնային համակարգի ամենաակտիվ հրաբխային գործունեությունը՝ ավելի քան 1,600 խոշոր հրաբուխներով։",
+            "Վեներայի մթնոլորտային ճնշումը 92 անգամ ավելի մեծ է Երկրի համեմատ՝ համարժեք է 1000 մետր խորության ջրի տակ լինելուն։",
+            "Վեներան ծածկված է ծծմբական թթվի հաստ ամպերով, որոնք ստեղծում են անզսպելի ջերմոցային էֆեկտ և բռնում են ջերմությունը։",
+            "Հին աստղաբանները Վեներային կոչում էին և՛ «Առավոտյան աստղ», և՛ «Երեկոյան աստղ»՝ մինչև հասկանալը, որ դա մեկ նույն մոլորակն է։",
+            "Վեներան չունի արբանյակներ և օղակներ՝ դարձնելով այն Արեգակնային համակարգի միակ երկու մոլորակներից մեկը այս առանձնահատկությամբ։",
+            "Վեներայի վրա կայծակները ավելի հաճախ և ուժեղ են, քան Երկրի վրա՝ որոշ փոթորիկներ տևում են ամիսներ։",
+            "Վեներայի մակերեսը ավելի երիտասարդ է, քան Երկրինը՝ ենթադրելով, որ զանգվածային հրաբխային վերամակերեսավորում է տեղի ունեցել 300-600 միլիոն տարի առաջ։",
+            "Վերջին հայտնագործությունները ենթադրում են, որ Վեներան կարող էր ունենալ օվկիանոսներ միլիարդավոր տարիների ընթացքում՝ մինչև իր ծայրահեղ ջերմոցային էֆեկտը զարգանալը։"
+        ];
+
+        // Ստեղծել 3D աստղեր
+        function create3DStars() {
+            const starsContainer = document.getElementById('starsContainer');
+            for (let i = 0; i < 150; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                const size = Math.random() * 3 + 1;
+                star.style.width = size + 'px';
+                star.style.height = size + 'px';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.setProperty('--z', (Math.random() * 300 - 150) + 'px');
+                star.style.animationDelay = Math.random() * 3 + 's';
+                star.style.animationDuration = (2 + Math.random() * 3) + 's';
+                starsContainer.appendChild(star);
+            }
+        }
+
+        // Անհատական կուրսոր
+        document.addEventListener('mousemove', (e) => {
+            const cursor = document.getElementById('cursor');
+            cursor.style.left = e.clientX + 'px';
+            cursor.style.top = e.clientY + 'px';
+        });
+
+        // Մասնիկների համակարգ
+        function createParticles() {
+            const particleSystem = document.getElementById('particleSystem');
+            
+            setInterval(() => {
+                if (gamePhase === 'approaching' || gamePhase === 'facts' || gamePhase === 'alienEncounter') {
+                    const particle = document.createElement('div');
+                    particle.className = 'particle';
+                    particle.style.left = Math.random() * 100 + '%';
+                    particle.style.background = `rgba(${Math.random() * 255}, ${100 + Math.random() * 155}, ${150 + Math.random() * 105}, 0.9)`;
+                    particle.style.animationDelay = Math.random() * 2 + 's';
+                    particle.style.animationDuration = (5 + Math.random() * 5) + 's';
+                    particle.style.boxShadow = `0 0 ${10 + Math.random() * 10}px rgba(255, 107, 157, 0.9)`;
+                    
+                    particleSystem.appendChild(particle);
+                    
+                    setTimeout(() => {
+                        if (particle.parentNode) {
+                            particle.parentNode.removeChild(particle);
+                        }
+                    }, 10000);
+                }
+            }, 150);
+        }
+
+        function startJourney() {
+            create3DStars();
+            createParticles();
+            
+            setTimeout(() => {
+                gamePhase = 'approaching';
+                approachVenus();
+            }, 4000);
+        }
+
+        function approachVenus() {
+            const solarSystem = document.getElementById('solarSystem');
+            const venusCloseup = document.getElementById('venusCloseup');
+            
+            solarSystem.style.transform = 'scale(5) translate(-25%, -35%) rotateX(15deg)';
+            
+            setTimeout(() => {
+                solarSystem.style.transform += ' rotateZ(2deg)';
+            }, 2000);
+
+            setTimeout(() => {
+                solarSystem.style.transform += ' rotateZ(-2deg)';
+            }, 2300);
+
+            setTimeout(() => {
+                solarSystem.style.display = 'none';
+                venusCloseup.classList.add('active');
+                gamePhase = 'facts';
+                showNextFact();
+            }, 6000);
+        }
+
+        function showNextFact() {
+            if (currentFact >= venusFacts.length) return;
+            
+            const factDisplay = document.getElementById('factDisplay');
+            const factText = document.getElementById('factText');
+            const factCounter = document.getElementById('factCounter');
+            const factTitle = document.getElementById('factTitle');
+            
+            const titles = [
+                "🔥 Դժոխային տապ", "⏰ Ժամանակի անոմալիա", "🌋 Հրաբխային բորբոքում", 
+                "💪 Ճնշող ճնշում", "☁️ Թթվային սարսափ", "⭐ Հին խորհուրդ",
+                "🌙 Միայնակ աշխարհ", "⚡ Էլեկտրական փոթորիկներ", "🆕 Նորացված մակերես", "🌊 Կորած օվկիանոսներ"
+            ];
+            
+            factTitle.textContent = titles[currentFact] || "Վեներայի խորհուրդներ";
+            factText.textContent = venusFacts[currentFact];
+            factCounter.textContent = currentFact + 1;
+            factDisplay.classList.add('show');
+            
+            if (currentFact === 3) {
+                document.body.style.animation = 'pressure-effect 2s ease-in-out';
+            } else if (currentFact === 7) {
+                createLightningEffect();
+            }
+            
+            setTimeout(() => {
+                factDisplay.classList.remove('show');
+                currentFact++;
+                
+                if (currentFact === 6 && gamePhase === 'facts') {
+                    setTimeout(() => triggerAlienEncounter(), 1000);
+                } else if (currentFact === 10 && gamePhase === 'facts2') {
+                    setTimeout(() => triggerConsciousnessTransfer(), 1000);
+                } else if (gamePhase === 'facts' || gamePhase === 'facts2') {
+                    setTimeout(() => showNextFact(), 5000);
+                }
+            }, 6000);
+        }
+
+        function createLightningEffect() {
+            for (let i = 0; i < 7; i++) {
+                setTimeout(() => {
+                    const lightning = document.createElement('div');
+                    lightning.style.position = 'absolute';
+                    lightning.style.top = Math.random() * 50 + '%';
+                    lightning.style.left = Math.random() * 100 + '%';
+                    lightning.style.width = '3px';
+                    lightning.style.height = Math.random() * 250 + 150 + 'px';
+                    lightning.style.background = 'linear-gradient(to bottom, #fff, #7877c6, transparent)';
+                    lightning.style.boxShadow = '0 0 30px #fff, 0 0 50px #7877c6';
+                    lightning.style.animation = 'lightning-flash 0.3s ease-out';
+                    lightning.style.filter = 'blur(1px)';
+                    
+                    document.getElementById('gameContainer').appendChild(lightning);
+                    
+                    setTimeout(() => lightning.remove(), 300);
+                }, i * 200);
+            }
+        }
+
+        function triggerAlienEncounter() {
+            gamePhase = 'alienEncounter';
+            const alienShip = document.getElementById('alienShip');
+            
+            alienShip.classList.add('active');
+            
+            setTimeout(() => showTelepathicMessage("Ողջույն, Երկրային ճանապարհորդ..."), 2500);
+            setTimeout(() => showTelepathicMessage("Մենք Վեներայի գիտակցության կոլեկտիվն ենք"), 5000);
+            setTimeout(() => showTelepathicMessage("Ձեր տեսակը խոստումնալից է..."), 7500);
+            setTimeout(() => showTelepathicMessage("Մենք ձեզ ընտրություն ենք առաջարկում..."), 10000);
+            
+            setTimeout(() => {
+                const energyBeam = document.createElement('div');
+                energyBeam.className = 'energy-beam active';
+                document.getElementById('gameContainer').appendChild(energyBeam);
+            }, 12000);
+            
+            setTimeout(() => {
+                const emergencyScreen = document.getElementById('emergencyScreen');
+                emergencyScreen.style.display = 'flex';
+            }, 14000);
+        }
+
+        function showTelepathicMessage(message) {
+            const telepathicMsg = document.createElement('div');
+            telepathicMsg.className = 'telepathic-message';
+            telepathicMsg.textContent = message;
+            telepathicMsg.style.animationDelay = '0s';
+            
+            document.getElementById('gameContainer').appendChild(telepathicMsg);
+            
+            setTimeout(() => {
+                if (telepathicMsg.parentNode) {
+                    telepathicMsg.parentNode.removeChild(telepathicMsg);
+                }
+            }, 5000);
+        }
+
+        function goHome() {
+            document.body.style.background = 'radial-gradient(circle, #ff6b9d 0%, #7877c6 50%, #000 100%)';
+            document.body.innerHTML = `
+                <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 1000;">
+                    <h1 style="color: #ff6b9d; font-size: 4em; margin-bottom: 40px; text-shadow: 0 0 40px #ff6b9d; font-weight: bold;">
+                        ✨ Խորհրդավոր վերադարձ ✨
+                    </h1>
+                    <p style="color: #ffffff; font-size: 2em; margin-bottom: 50px; text-shadow: 0 2px 4px rgba(0,0,0,0.7);">
+                        Տիեզերական հողմերը ձեզ տուն են տանում...
+                    </p>
+                    <div style="width: 180px; height: 180px; border: 8px solid #ff6b9d; border-top: 8px solid transparent; border-radius: 50%; margin: 0 auto; animation: cosmic-spin 2s linear infinite; box-shadow: 0 0 60px #ff6b9d;"></div>
+                </div>
+                <style>
+                    @keyframes cosmic-spin { 
+                        0% { transform: rotate(0deg) scale(1); }
+                        50% { transform: rotate(180deg) scale(1.3); }
+                        100% { transform: rotate(360deg) scale(1); }
+                    }
+                    body {
+                        animation: return-journey 4s ease-in-out;
+                    }
+                    @keyframes return-journey {
+                        0% { filter: hue-rotate(0deg) brightness(1); }
+                        100% { filter: hue-rotate(360deg) brightness(1.6); }
+                    }
+                </style>
+            `;
+            
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 5000);
+        }
+
+        function acceptAliens() {
+            const emergencyScreen = document.getElementById('emergencyScreen');
+            const emergencyText = document.getElementById('emergencyText');
+            
+            emergencyText.innerHTML = `
+                <div style="color: #7877c6; font-size: 1.8em; font-weight: bold;">
+                    🧠 ԳԻՏԱԿՑՈՒԹՅԱՆ ԸՆԴԼԱՅՆՈՒՄ ՍԿՍՎԱԾ Է 🧠
+                </div>
+                <div style="margin: 40px 0;">
+                    <div class="progress-bar">
+                        <div class="progress-fill"></div>
+                    </div>
+                </div>
+                <p style="font-style: italic; color: #ff6b9d; font-size: 1.4em;">
+                    «Ձեր միտքը ընդլայնվում է անմահի սահմաններից անդին...»
+                </p>
+            `;
+            
+            setTimeout(() => {
+                const consciousnessEffect = document.createElement('div');
+                consciousnessEffect.style.cssText = `
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: radial-gradient(circle at center, 
+                        rgba(255, 107, 157, 0.15) 0%, 
+                        rgba(120, 119, 198, 0.25) 30%,
+                        rgba(155, 89, 182, 0.35) 60%,
+                        rgba(0, 0, 0, 0.85) 100%);
+                    animation: consciousness-wave 10s ease-in-out;
+                `;
+                document.getElementById('gameContainer').appendChild(consciousnessEffect);
+            }, 1000);
+            
+            setTimeout(() => {
+                emergencyText.innerHTML = `
+                    <div style="color: #ff6b9d; font-size: 2.2em; font-weight: bold;">
+                        ✨ ՎԵՐԱՓՈԽՈՒՄԸ ԱՎԱՐՏՎԱԾ Է ✨
+                    </div>
+                    <p style="font-size: 1.5em; margin-top: 25px;">Այժմ դուք տիրապետում եք Վեներայի հին իմաստությանը։</p>
+                    <p style="margin-top: 20px; font-style: italic; font-size: 1.3em;">
+                        Մնացած գաղտնիքները սպասում են ձեր լուսավորված միտքին...
+                    </p>
+                `;
+            }, 5000);
+            
+            setTimeout(() => {
+                emergencyScreen.style.display = 'none';
+                gamePhase = 'facts2';
+                setTimeout(() => showNextFact(), 1000);
+            }, 8000);
+        }
+
+        function triggerConsciousnessTransfer() {
+            const portal = document.createElement('div');
+            portal.style.cssText = `
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 0;
+                height: 0;
+                background: radial-gradient(circle,
+                    rgba(255, 107, 157, 0.9) 0%,
+                    rgba(120, 119, 198, 0.7) 30%,
+                    rgba(155, 89, 182, 0.5) 60%,
+                    transparent 100%);
+                border-radius: 50%;
+                opacity: 0;
+                animation: portal-open 8s ease-out;
+            `;
+            document.getElementById('gameContainer').appendChild(portal);
+            
+            setTimeout(() => {
+                showTelepathicMessage("Ձեր ուղևորությունը ձեզ վերափոխում է ընդմիշտ...");
+            }, 2000);
+            
+            setTimeout(() => {
+                showTelepathicMessage("Այժմ դուք մեկ եք տիեզերքի հետ...");
+            }, 5000);
+            
+            setTimeout(() => {
+                document.body.style.background = 'radial-gradient(circle, #ffc649 0%, #ff8f00 50%, #000 100%)';
+                document.body.innerHTML = `
+                    <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 1000; max-width: 900px;">
+                        <h1 style="color: #ffc649; font-size: 4.5em; margin-bottom: 40px; text-shadow: 0 0 50px #ffc649; animation: final-glow 2s ease-in-out infinite alternate; font-weight: bold;">
+                            🪐 ՎԵՆԵՐԱՆ ՍՊԱՍՈՒՄ Է 🪐
+                        </h1>
+                        <p style="color: #ffffff; font-size: 2.2em; margin-bottom: 50px; line-height: 1.6; text-shadow: 0 2px 4px rgba(0,0,0,0.7);">
+                            Ձեր գիտակցությունը անցել է անմահի սահմանները։<br>
+                            Բարի գալուստ ձեր նոր իրականություն...
+                        </p>
+                        <div style="font-size: 1.7em; color: #fff;">
+                            <div style="margin: 25px 0; text-shadow: 0 0 15px rgba(255, 198, 73, 0.8);">✨ Ընդլայնված ընկալում՝ ԱԿՏԻՎ</div>
+                            <div style="margin: 25px 0; text-shadow: 0 0 15px rgba(255, 198, 73, 0.8);">🧠 Տիեզերական գիտակցություն՝ ԲԱՑՎԱԾ</div>
+                            <div style="margin: 25px 0; text-shadow: 0 0 15px rgba(255, 198, 73, 0.8);">👽 Օտարերկրյա գիտելիքներ՝ ԻՆՏԵԳՐՎԱԾ</div>
+                        </div>
+                    </div>
+                    <style>
+                        @keyframes final-glow {
+                            0% { 
+                                text-shadow: 0 0 50px #ffc649;
+                                transform: scale(1);
+                            }
+                            100% { 
+                                text-shadow: 0 0 100px #ffc649, 0 0 150px #ff8f00;
+                                transform: scale(1.08);
+                            }
+                        }
+                        @keyframes portal-open {
+                            0% { 
+                                width: 0; 
+                                height: 0; 
+                                opacity: 0;
+                                transform: translate(-50%, -50%) rotate(0deg);
+                            }
+                            30% {
+                                opacity: 1;
+                            }
+                            100% { 
+                                width: 2000px; 
+                                height: 2000px; 
+                                opacity: 0.95;
+                                transform: translate(-50%, -50%) rotate(720deg);
+                            }
+                        }
+                        @keyframes consciousness-wave {
+                            0%, 100% { 
+                                opacity: 0; 
+                                transform: scale(0.5) rotate(0deg);
+                            }
+                            50% { 
+                                opacity: 1; 
+                                transform: scale(1.8) rotate(180deg);
+                            }
+                        }
+                        body {
+                            animation: cosmic-awakening 8s ease-in-out;
+                        }
+                        @keyframes cosmic-awakening {
+                            0% { filter: hue-rotate(0deg) brightness(1) saturate(1); }
+                            50% { filter: hue-rotate(180deg) brightness(1.6) saturate(1.6); }
+                            100% { filter: hue-rotate(360deg) brightness(1.3) saturate(1.3); }
+                        }
+                    </style>
+                `;
+            }, 8000);
+            
+            setTimeout(() => {
+                alert('Նշում՝ Այս դեմոն ավարտված է։ Իրական հավելվածում կարող է լինել անցում դեպի planet2.html');
+            }, 14000);
+        }
+
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes pressure-effect {
+                0%, 100% { transform: scale(1); }
+                50% { transform: scale(0.97); filter: brightness(0.75); }
+            }
+            @keyframes lightning-flash {
+                0%, 100% { opacity: 0; }
+                50% { opacity: 1; }
+            }
+            @keyframes mystical-emergency {
+                0% { 
+                    background: radial-gradient(circle at center,
+                        rgba(255, 107, 157, 0.15) 0%,
+                        rgba(120, 119, 198, 0.25) 50%,
+                        rgba(0, 0, 0, 0.95) 100%);
+                }
+                100% { 
+                    background: radial-gradient(circle at center,
+                        rgba(255, 107, 157, 0.35) 0%,
+                        rgba(120, 119, 198, 0.45) 50%,
+                        rgba(0, 0, 0, 0.95) 100%);
+                }
+            }
+            @keyframes title-glow {
+                0% { text-shadow: 0 0 25px rgba(255, 107, 157, 0.9), 0 0 50px rgba(255, 107, 157, 0.5); }
+                100% { text-shadow: 0 0 50px rgba(255, 107, 157, 1), 0 0 100px rgba(255, 107, 157, 0.7); }
+            }
+        `;
+        document.head.appendChild(style);
+
+        window.onload = function() {
+            startJourney();
+        };
+    </script>
+</body>
+</html>

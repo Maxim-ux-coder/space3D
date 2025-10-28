@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="hy">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Յուպիտեր</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Arial', sans-serif; }
+        canvas { display: block; }
+        
+        /* Ընդհանուր ոճեր էկրանների համար */
+        .screen {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            color: #fff;
+            z-index: 200;
+            background-color: rgba(0, 0, 0, 0.9);
+            transition: opacity 1s;
+        }
+
+        /* Մեկնարկային Էկրան */
+        #startScreen {
+            background: linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 50, 0.9));
+        }
+
+        /* Փաստերի Ցուցադրում */
+        #factDisplay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 100;
+            color: #fff;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 30px 50px;
+            border-radius: 15px;
+            border: 5px solid #ffcc00;
+            max-width: 700px;
+            text-align: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 1.5s, visibility 1.5s;
+        }
+
+        #factDisplay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        #factText {
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            color: #ffe082;
+            text-shadow: 0 0 15px #ffcc00;
+        }
+
+        /* Կոճակների ոճեր */
+        button {
+            padding: 15px 30px;
+            font-size: 1.2em;
+            background-color: #00ff88;
+            color: #000;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #00cc66;
+        }
+    </style>
+</head>
+<body>
+    
+    <div id="startScreen" class="screen">
+        <h1>🚀 Ճանապարհորդություն դեպի Յուպիտեր</h1>
+        <p>Միացեք մեզ Յուպիտերի 3D հետազոտությանը</p>
+        <button id="startButton">ՍԿՍԵԼ ԱՌԱՔԵԼՈՒԹՅՈՒՆԸ</button>
+    </div>
+
+    <div id="factDisplay">
+        <p id="factText"></p>
+        <p id="progress"><small>Փաստ <span id="factCounter">1</span>-ը 5-ից</small></p>
+        <button><a href="index.html">ԳԼԽԱՎՈՐ ԷՋ</a></button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script>
+        // -------------------------
+        // THREE.JS ԿԱՐԳԱՎՈՐՈՒՄՆԵՐ
+        // -------------------------
+        
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 10000);
+        
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setClearColor(0x000000); 
+        document.body.appendChild(renderer.domElement);
+        
+        // Լուսավորություն
+        const ambientLight = new THREE.AmbientLight(0x404040); 
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(1, 0, 0); 
+        scene.add(directionalLight);
+
+        const objects = {};
+        const planetData = {
+            sun: { radius: 100, color: 0xffaa00, distance: 0 },
+            earth: { radius: 10, color: 0x0066ff, distance: 300 },
+            jupiter: { radius: 50, color: 0xcc9966, distance: 800 } 
+        };
+
+        let currentFactObject = null; 
+        let phase = 'initial_view';
+        let factIndex = 0;
+        let flightProgress = 0; 
+        const flightSpeed = 0.003; 
+
+        // Ֆունկցիաներ՝ Օբյեկտներ Ստեղծելու
+        function createPlanet(data, name) {
+            const geometry = new THREE.SphereGeometry(data.radius, 64, 64);
+            const material = new THREE.MeshPhongMaterial({ 
+                color: data.color, 
+                shininess: (name === 'sun') ? 100 : 30 
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            if (name !== 'sun') {
+                mesh.position.set(data.distance, 0, 0);
+            }
+            mesh.name = name;
+            objects[name] = mesh;
+            scene.add(mesh);
+            return mesh;
+        }
+
+        function createStars() {
+            const starGeometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(5000 * 3);
+            for (let i = 0; i < 5000; i++) {
+                const r = 4000;
+                const theta = 2 * Math.PI * Math.random();
+                const phi = Math.acos(2 * Math.random() - 1);
+                positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+                positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+                positions[i * 3 + 2] = r * Math.cos(phi);
+            }
+            starGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 3, sizeAttenuation: true });
+            const stars = new THREE.Points(starGeometry, starMaterial);
+            stars.name = 'starField';
+            scene.add(stars);
+        }
+
+        // Սկզբնական Օբյեկտներ
+        createPlanet(planetData.sun, 'sun');
+        createPlanet(planetData.earth, 'earth');
+        createPlanet(planetData.jupiter, 'jupiter');
+        createStars();
+        scene.add(camera);
+
+        // Տեսախցիկը դրվում է Երկրի մոտ
+        camera.position.set(planetData.earth.distance - 50, 20, 100); 
+        camera.lookAt(objects.jupiter.position);
+
+
+        // -------------------------
+        // ՍՅՈՒԺԵԻ ԿԱՌԱՎԱՐՈՒՄ
+        // -------------------------
+
+        const jupiterFacts = [
+            "Փաստ 1. Չափը: Յուպիտերը Արեգակնային համակարգի ամենամեծ մոլորակն է. նրա մեջ կտեղավորվեր ավելի քան 1300 Երկիր:",
+            "Փաստ 2. Մեծ Կարմիր Կետ: Այն հսկայական փոթորիկ է, որը դիտվում է ավելի քան 350 տարի և ավելի մեծ է, քան Երկիրը:",
+            "Փաստ 3. Օրվա Տևողությունը: Յուպիտերն ունի ամենակարճ օրը Արեգակնային համակարգում՝ մոտ 10 ժամ:",
+            "Փաստ 4. Արբանյակներ: Եվրոպա արբանյակը ենթադրաբար իր սառցե կեղևի տակ թաքցնում է հսկայական օվկիանոս:",
+            "Փաստ 5. Կազմություն: Մոլորակը կազմված է հիմնականում ջրածնից և հելիումից՝ չունենալով պինդ մակերևույթ։",
+        ];
+
+        const startPos = camera.position.clone();
+        const targetPos = objects.jupiter.position.clone().add(new THREE.Vector3(70, 0, 0)); 
+        const entryPos = objects.jupiter.position.clone().add(new THREE.Vector3(0, 0, 10)); 
+
+        document.getElementById('startButton').addEventListener('click', () => {
+            document.getElementById('startScreen').style.opacity = 0;
+            setTimeout(() => {
+                document.getElementById('startScreen').style.display = 'none';
+                startFlight();
+            }, 1000);
+        });
+
+        function resetSimulation() {
+            // Վերականգնել բոլոր պարամետրերը
+            phase = 'initial_view';
+            factIndex = 0;
+            flightProgress = 0;
+            cleanFactObjects();
+            
+            // Վերադարձնել օբյեկտները տեսարան
+            objects.jupiter.visible = true;
+            objects.earth.visible = true;
+            objects.sun.visible = true;
+            directionalLight.intensity = 1;
+
+            // Վերադարձնել տեսախցիկը սկզբնական դիրք
+            camera.position.copy(startPos);
+            camera.lookAt(objects.jupiter.position);
+
+            document.getElementById('factDisplay').style.opacity = 0;
+            document.getElementById('factDisplay').style.visibility = 'hidden';
+            document.getElementById('returnButton').style.display = 'none';
+
+            document.getElementById('startScreen').style.display = 'flex';
+            setTimeout(() => {
+                document.getElementById('startScreen').style.opacity = 1;
+            }, 50);
+        }
+
+        function startFlight() {
+            // Սկզբնական դիրքերը պետք է ճիշտ դրվեն ամեն անգամ
+            startPos.copy(objects.earth.position).add(new THREE.Vector3(-50, 20, 100)); 
+            camera.position.copy(startPos);
+            camera.lookAt(objects.jupiter.position);
+            
+            phase = 'flying_to_jupiter';
+        }
+
+        function cleanFactObjects() {
+            if (currentFactObject) {
+                scene.remove(currentFactObject);
+                if (currentFactObject.geometry) currentFactObject.geometry.dispose();
+                if (currentFactObject.material) currentFactObject.material.dispose();
+                currentFactObject = null;
+            }
+        }
+        
+        // ՓԱՍՏԵՐԻ 3D ՕԲՅԵԿՏՆԵՐԻ ՍՏԵՂԾՈՒՄ
+        function createFactVisualization(index) {
+            cleanFactObjects();
+
+            switch (index) {
+                case 0: // Փաստ 1. Չափը (1300 Երկիր)
+                    // Հսկա ցուցադրող ոլորտ
+                    const sphere = new THREE.SphereGeometry(100, 32, 32);
+                    const material = new THREE.MeshBasicMaterial({ color: 0x00ff88, wireframe: true, transparent: true, opacity: 0.5 });
+                    currentFactObject = new THREE.Mesh(sphere, material);
+                    currentFactObject.position.set(0, 0, -300);
+                    break;
+                
+                case 1: // Փաստ 2. Մեծ Կարմիր Կետ
+                    // Կարմիր, պտտվող հսկա ցիլինդր (Փոթորիկ)
+                    const redSpot = new THREE.Mesh(
+                        new THREE.CylinderGeometry(50, 50, 10, 32),
+                        new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true, transparent: true, opacity: 0.7 })
+                    );
+                    redSpot.position.set(0, 0, -200);
+                    redSpot.rotation.x = Math.PI / 2;
+                    currentFactObject = redSpot;
+                    break;
+                    
+                case 2: // Փաստ 3. Օրվա Տևողությունը (10 Ժամ)
+                    // Ժամացույցի սլաք, որը պտտվում է կտրուկ
+                    const hand = new THREE.Mesh(
+                        new THREE.BoxGeometry(4, 80, 2),
+                        new THREE.MeshBasicMaterial({ color: 0xffff00 })
+                    );
+                    hand.position.set(0, 40, -200); 
+                    currentFactObject = hand;
+                    break;
+
+                case 3: // Փաստ 4. Արբանյակներ (Եվրոպա, Սառցե Օվկիանոս)
+                    // Սառցե արբանյակ
+                    currentFactObject = new THREE.Mesh(
+                        new THREE.SphereGeometry(30, 32, 32),
+                        new THREE.MeshPhongMaterial({ color: 0x88bbff, specular: 0xffffff, shininess: 100 })
+                    );
+                    currentFactObject.position.set(0, 0, -200);
+                    break;
+
+                case 4: // Փաստ 5. Կազմություն (H2 և He)
+                    // Մոլեկուլյար մասնիկներ
+                    const particleGroup = new THREE.Group();
+                    for (let i = 0; i < 100; i++) {
+                        const color = Math.random() > 0.8 ? 0xffff00 : 0xaaaaaa;
+                        const particle = new THREE.Mesh(
+                            new THREE.SphereGeometry(1, 8, 8),
+                            new THREE.MeshBasicMaterial({ color: color })
+                        );
+                        particle.position.set(Math.random() * 200 - 100, Math.random() * 200 - 100, Math.random() * 200 - 300);
+                        particleGroup.add(particle);
+                    }
+                    currentFactObject = particleGroup;
+                    break;
+            }
+
+            if (currentFactObject) {
+                currentFactObject.name = 'fact_visualization';
+                scene.add(currentFactObject);
+            }
+        }
+
+
+        function showNextFact() {
+            if (factIndex < jupiterFacts.length) {
+                document.getElementById('factText').textContent = jupiterFacts[factIndex];
+                document.getElementById('factCounter').textContent = factIndex + 1;
+                
+                // 3D Վիզուալիզացիայի ստեղծում
+                createFactVisualization(factIndex);
+
+                document.getElementById('factDisplay').classList.add('show');
+                
+                setTimeout(() => {
+                    document.getElementById('factDisplay').classList.remove('show');
+                    factIndex++;
+                    cleanFactObjects(); 
+                    setTimeout(showNextFact, 1500); 
+                }, 7000); 
+            } else {
+                // Ավարտի էկրան
+                document.getElementById('factDisplay').innerHTML = `
+                    <h1>ԱՌԱՔԵԼՈՒԹՅՈՒՆՆ ԱՎԱՐՏՎԱԾ Է</h1>
+                    <p style="color: #00ff88;">Դուք հաջողությամբ հետազոտեցիք Յուպիտերը:</p>
+                    <button id="returnButton" onclick="resetSimulation()">ՎԵՐԱԴԱՐՁ ԳԼԽԱՎՈՐ ԷՋ</button>
+                `;
+                document.getElementById('factDisplay').classList.add('show');
+                phase = 'finished';
+            }
+        }
+
+
+        // -------------------------
+        // Գլխավոր Անիմացիոն Ցիկլ
+        // -------------------------
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Մոլորակների դանդաղ ինքնապտույտ
+            if (objects.jupiter && objects.jupiter.visible) objects.jupiter.rotation.y += 0.002;
+            
+            // ՓԱՍՏԵՐԻ 3D ԱՆԻՄԱՑԻՈՆ ԿԱՌԱՎԱՐՈՒՄ
+            if (phase === 'fact_display' && currentFactObject) {
+                switch (factIndex) {
+                    case 0: // Չափը
+                        currentFactObject.rotation.y += 0.01;
+                        break;
+                    case 1: // Կարմիր Կետ
+                        currentFactObject.rotation.z += 0.05; 
+                        break;
+                    case 2: // Օրվա Տևողությունը
+                        currentFactObject.rotation.z -= 0.1;
+                        break;
+                    case 3: // Եվրոպա
+                        currentFactObject.rotation.y += 0.005;
+                        break;
+                    case 4: // Կազմություն
+                        currentFactObject.rotation.x += 0.005;
+                        currentFactObject.rotation.y += 0.005;
+                        break;
+                }
+            }
+
+
+            // Շարժման Կառավարում (Արագացված)
+            if (phase === 'flying_to_jupiter') {
+                flightProgress += flightSpeed;
+                const p = Math.min(flightProgress, 1);
+                
+                camera.position.lerpVectors(startPos, targetPos, p);
+                camera.lookAt(objects.jupiter.position);
+
+                if (p === 1) {
+                    phase = 'entering_jupiter';
+                    flightProgress = 0; 
+                }
+            } else if (phase === 'entering_jupiter') {
+                flightProgress += flightSpeed * 2;
+                const p = Math.min(flightProgress, 1);
+                
+                camera.position.lerpVectors(targetPos, entryPos, p);
+                camera.lookAt(objects.jupiter.position);
+                
+                const stars = scene.children.find(c => c.name === 'starField');
+                if (stars) stars.rotation.x += 0.05;
+
+                if (p === 1) {
+                    // Պատրաստվում ենք փաստերի ցուցադրմանը
+                    objects.jupiter.visible = false;
+                    objects.earth.visible = false;
+                    objects.sun.visible = false;
+                    directionalLight.intensity = 0.1;
+
+                    phase = 'fact_display';
+                    setTimeout(showNextFact, 1000); 
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+        
+        // Գործարկել ցիկլը և սպասել մեկնարկի կոճակին
+        animate();
+
+        // Պատուհանի չափը փոխելիս
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+    </script>
+</body>
+</html>
