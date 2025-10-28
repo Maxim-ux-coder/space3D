@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Մերկուրի</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0d1117; /* Տիեզերքի մուգ ֆոն */
+            color: #e5e7eb;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            background-color: rgba(22, 27, 34, 0.95); /* Մուգ կիսաթափանցիկ ֆոն */
+            border-radius: 16px;
+            border: 1px solid #30363d;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+            max-width: 1200px; 
+            margin: 20px auto;
+            padding: 40px;
+            display: flex;
+            gap: 40px;
+            flex-wrap: wrap;
+        }
+        .info-section {
+            flex-basis: 55%;
+            min-width: 350px;
+        }
+        #mercury-3d-container {
+            flex-basis: 40%;
+            height: 400px;
+            border-radius: 12px;
+            overflow: hidden;
+            background-color: #000;
+            border: 2px solid #30363d;
+            /* Շլացումը Արեգակին մոտ լինելու պատճառով */
+            box-shadow: 0 0 20px rgba(255, 140, 0, 0.4); 
+            position: relative;
+        }
+        .fact-card {
+            background-color: #161b22;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #f97316; 
+            margin-bottom: 15px;
+            transition: transform 0.2s;
+        }
+        .back-button {
+            background-color: #58a6ff; 
+            color: black;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            margin-top: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="mercury-3d-container">
+            <div class="absolute top-2 left-2 text-xs bg-black bg-opacity-70 p-1 rounded text-[#f97316] font-bold">☀️ Մերկուրիի Երեսը</div>
+        </div>
+
+        <div class="info-section">
+            <div class="text-left mb-8">
+                <h1 class="text-5xl font-extrabold text-[#f97316] mb-2">🪐 Մերկուրի (Mercury)</h1>
+                <p class="text-xl text-gray-400">Արեգակին ամենամոտ և Արեգակնային համակարգի ամենափոքր մոլորակը:</p>
+            </div>
+
+            <h2 class="text-3xl font-bold text-white mb-6 border-b border-gray-700 pb-2">Հիմնական Բնութագրեր</h2>
+            <div class="grid sm:grid-cols-2 gap-5">
+                <div class="fact-card">
+                    <p class="text-lg font-semibold text-[#f97316]">Միջին Շառավիղ</p>
+                    <p class="text-gray-300">2,440 կմ</p>
+                </div>
+                <div class="fact-card">
+                    <p class="text-lg font-semibold text-[#f97316]">Արեգակից Հեռավորություն</p>
+                    <p class="text-gray-300">58 միլիոն կմ</p>
+                </div>
+                <div class="fact-card">
+                    <p class="text-lg font-semibold text-[#f97316]">Օրվա Տևողություն</p>
+                    <p class="text-gray-300">59 Երկրային օր</p>
+                </div>
+                <div class="fact-card">
+                    <p class="text-lg font-semibold text-[#f97316]">Տարվա Տևողություն</p>
+                    <p class="text-gray-300">88 Երկրային օր</p>
+                </div>
+            </div>
+
+            <h2 class="text-3xl font-bold text-white mt-10 mb-6 border-b border-gray-700 pb-2">Հետաքրքիր Փաստեր</h2>
+            <ul class="space-y-4 text-gray-300">
+                <li class="p-3 bg-gray-800 rounded-lg">
+                    <span class="text-[#f97316] font-bold">Ջերմաստիճանի Ծայրահեղություններ:</span> Մերկուրիի վրա ջերմաստիճանը կարող է տատանվել +430-ից (ցերեկը) մինչև -180(գիշերը)։
+                </li>
+                <li class="p-3 bg-gray-800 rounded-lg">
+                    <span class="text-[#f97316] font-bold">Մեկ Մերկուրիական Օր:</span> Մերկուրիի վրա մեկ օրը տևում է 58,6 Երկրային օր։
+                </li>
+            </ul>
+
+            <div class="text-left">
+                <a href="index.html" class="back-button">
+                    &#x2190; Վերադառնալ Արեգակնային Համակարգ
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let scene, camera, renderer, mercury;
+        const container = document.getElementById('mercury-3d-container');
+
+        // Ավելացնում ենք օբյեկտիվ պտտման հսկողություն
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+        const rotationSpeed = 0.005;
+
+        function initMercury3D() {
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            // 1. Scene, Camera, Renderer
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+            camera.position.z = 5;
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(width, height);
+            container.appendChild(renderer.domElement);
+
+            // 2. Մոլորակի Ստեղծում
+            const mercuryGeometry = new THREE.SphereGeometry(1.5, 64, 64);
+            
+            // Օգտագործում ենք MeshPhongMaterial ստվերների համար
+            const mercuryMaterial = new THREE.MeshPhongMaterial({
+                color: 0x8a8a8a, // Հիմնական մոխրագույն
+                shininess: 5,
+                specular: 0x222222 // Թույլ արտացոլում
+            });
+            
+            // Իդեալականացված Մերկուրի
+            mercury = new THREE.Mesh(mercuryGeometry, mercuryMaterial);
+            scene.add(mercury);
+            mercury.rotation.z = Math.PI * 0.05; 
+
+            // 3. Լուսավորություն (Շլացուցիչ Էֆեկտ Արեգակից)
+            
+            // Գլխավոր ուղղորդված լույս (Իմիտացիա Արեգակի)
+            const sunLight = new THREE.DirectionalLight(0xffcc00, 3); // Բարձր ինտենսիվություն
+            sunLight.position.set(10, 5, 10); // Լույսը թող գա վերևից և աջից
+            scene.add(sunLight);
+            
+            // Հետին լույս՝ ստվերները մեղմելու համար (Ambient Light)
+            const ambientLight = new THREE.AmbientLight(0x404040, 1.5); // Ավելի բարձր ինտենսիվություն
+            scene.add(ambientLight);
+
+            // Հակառակ կողմի լույս (Rim Light)՝ ուրվագծելու համար
+            const fillLight = new THREE.PointLight(0xaa8800, 1);
+            fillLight.position.set(-10, -5, -10);
+            scene.add(fillLight);
+            
+            // 4. Մկնիկով Պտտման Իրադարձությունները
+            container.addEventListener('mousedown', onMouseDown, false);
+            container.addEventListener('mousemove', onMouseMove, false);
+            container.addEventListener('mouseup', onMouseUp, false);
+            container.addEventListener('touchstart', onTouchStart, false);
+            container.addEventListener('touchmove', onTouchMove, false);
+            container.addEventListener('touchend', onTouchEnd, false);
+
+            // 5. Անիմացիոն ցիկլ
+            function animate() {
+                requestAnimationFrame(animate);
+
+                // Մոլորակի ավտոմատ դանդաղ պտույտ
+                if (!isDragging) {
+                    mercury.rotation.y += 0.002; 
+                }
+
+                renderer.render(scene, camera);
+            }
+
+            // 6. Ռեսայզի մշակում
+            window.addEventListener('resize', onWindowResize, false);
+            function onWindowResize() {
+                const newWidth = container.clientWidth;
+                const newHeight = container.clientHeight;
+
+                camera.aspect = newWidth / newHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(newWidth, newHeight);
+            }
+            
+            // 7. Մկնիկի Կառավարման Ֆունկցիաներ
+            function onMouseDown(event) {
+                event.preventDefault();
+                isDragging = true;
+                previousMousePosition.x = event.clientX;
+                previousMousePosition.y = event.clientY;
+            }
+            function onMouseMove(event) {
+                if (!isDragging) return;
+                event.preventDefault();
+                
+                const deltaX = event.clientX - previousMousePosition.x;
+                const deltaY = event.clientY - previousMousePosition.y;
+
+                // Օգտագործողի կողմից պտտում
+                mercury.rotation.y += deltaX * rotationSpeed;
+                mercury.rotation.x += deltaY * rotationSpeed;
+
+                previousMousePosition.x = event.clientX;
+                previousMousePosition.y = event.clientY;
+            }
+            function onMouseUp(event) {
+                isDragging = false;
+            }
+            
+            // 8. Զգայուն կառավարման Ֆունկցիաներ
+            function onTouchStart(event) {
+                if (event.touches.length === 1) {
+                    event.preventDefault();
+                    isDragging = true;
+                    previousMousePosition.x = event.touches[0].clientX;
+                    previousMousePosition.y = event.touches[0].clientY;
+                }
+            }
+            function onTouchMove(event) {
+                if (!isDragging || event.touches.length !== 1) return;
+                event.preventDefault();
+                
+                const deltaX = event.touches[0].clientX - previousMousePosition.x;
+                const deltaY = event.touches[0].clientY - previousMousePosition.y;
+
+                mercury.rotation.y += deltaX * rotationSpeed * 2; // Ավելի արագ touch-ի համար
+                mercury.rotation.x += deltaY * rotationSpeed * 2;
+
+                previousMousePosition.x = event.touches[0].clientX;
+                previousMousePosition.y = event.touches[0].clientY;
+            }
+            function onTouchEnd(event) {
+                isDragging = false;
+            }
+
+            animate();
+        }
+
+        // Կանչել init ֆունկցիան, երբ պատուհանը բեռնվի
+        window.onload = initMercury3D;
+    </script>
+</body>
+</html>
